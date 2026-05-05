@@ -1,5 +1,5 @@
 def main():
-    print("=== Meu RPG ===")
+    print("=== ConsoleRPG ===")
     
     nome = input("Digite seu nome: ")
     
