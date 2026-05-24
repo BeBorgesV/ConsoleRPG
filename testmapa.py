@@ -1,15 +1,19 @@
 from mapa import *
 
-
 def testar_criarMapa():
-
-    codigo, mapa = criarMapa()
-
+    estrutura_valida = {
+        "regioes": ["floresta", "cidade", "dungeon"],
+        "tamanho": (10, 10),
+        "posicao_inicial": (0, 0)
+    }
+    codigo, mapa = criarMapa(estrutura_valida)
     assert codigo == 0
     assert mapa is not None
-
+    assert criarMapa({}) == (1, None)
     assert criarMapa(None) == (2, None)
+    print("testar_criarMapa: OK")
 
+testar_criarMapa()
 
 def testar_posicaoValida():
 
