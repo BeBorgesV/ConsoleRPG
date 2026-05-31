@@ -69,3 +69,23 @@ def getInventario(jogador):
         return 1, None
     #CT-J18: Consultar inventário válido
     return 0, jogador["inventario"]
+
+def moverJogador(jogador, dx, dy):
+    # CT-J21: jogador inválido
+    if jogador is None:
+        return 2
+
+    # CT-J20: parâmetros inválidos
+    if dx is None or dy is None:
+        return 2
+    if not isinstance(dx, (int, float)) or not isinstance(dy, (int, float)):
+        return 2
+
+    if "posicao" not in jogador:
+        return 1
+
+    x, y = jogador["posicao"]
+    jogador["posicao"] = (x + dx, y + dy)
+    return 0
+
+    

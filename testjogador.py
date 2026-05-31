@@ -54,3 +54,14 @@ def testar_getInventario():
     print("testar_getInventario: OK")
 
 testar_getInventario()
+
+def testar_moverJogador():
+    _, jogador = criarJogador("Ana")
+
+    assert moverJogador(jogador, 1, 0) == 0               # CT-J19
+    assert jogador["posicao"] == (1, 0)                   # posição atualizada
+    assert moverJogador(jogador, None, 1) == 2            # CT-J20
+    assert moverJogador(None, 1, 0) == 2                  # CT-J21
+    print("testar_moverJogador: OK")
+
+testar_moverJogador()
