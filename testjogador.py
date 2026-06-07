@@ -65,3 +65,103 @@ def testar_moverJogador():
     print("testar_moverJogador: OK")
 
 testar_moverJogador()
+
+def testar_receberDanoJogador():
+    jogador = {"nome": "Ana", "vida": 100}
+
+    assert receberDanoJogador(jogador, 20) == 0      # CT-J22
+    assert jogador["vida"] == 80
+
+    jogador = {"nome": "Ana", "vida": 100}
+    assert receberDanoJogador(jogador, -10) == 2     # CT-J23
+    assert jogador["vida"] == 100
+
+    assert receberDanoJogador(None, 10) == 2         # CT-J24
+    print("testar_receberDanoJogador: OK")
+
+testar_receberDanoJogador()
+
+
+def testar_curarJogador():
+    jogador = {"nome": "Ana", "vida": 50, "vida_max": 100}
+
+    assert curarJogador(jogador, 20) == 0            # CT-J25
+    assert jogador["vida"] == 70
+
+    jogador = {"nome": "Ana", "vida": 100, "vida_max": 100}
+    assert curarJogador(jogador, 20) == 1            # CT-J26
+
+    assert curarJogador(jogador, -10) == 2           # CT-J27
+    print("testar_curarJogador: OK")
+
+testar_curarJogador()
+
+
+def testar_ganharXP():
+    jogador = {"nome": "Ana", "xp": 10}
+
+    assert ganharXP(jogador, 20) == 0                # CT-J28
+    assert jogador["xp"] == 30
+
+    assert ganharXP(jogador, -5) == 2               # CT-J29
+    print("testar_ganharXP: OK")
+
+testar_ganharXP()
+
+
+def testar_atualizarAtaque():
+    jogador = {"nome": "Ana", "xp": 100, "ataque": 10}
+
+    assert atualizarAtaque(jogador) == 0            # CT-J30
+    assert jogador["ataque"] == 11
+
+    assert atualizarAtaque(None) == 2               # CT-J31
+    print("testar_atualizarAtaque: OK")
+
+testar_atualizarAtaque()
+
+
+def testar_adicionarItemJogador():
+    jogador = {"nome": "Ana", "inventario": []}
+    item = {"nome": "Poção", "tipo": "cura", "valor": 20}
+
+    assert adicionarItemJogador(jogador, item) == 0     # CT-J32
+    assert item in jogador["inventario"]
+
+    jogador = {
+        "nome": "Ana",
+        "inventario": ["i1", "i2", "i3", "i4", "i5"]
+    }
+
+    assert adicionarItemJogador(jogador, item) == 1     # CT-J33
+    assert adicionarItemJogador(None, item) == 2        # CT-J34
+
+    print("testar_adicionarItemJogador: OK")
+
+testar_adicionarItemJogador()
+
+
+def testar_usarItemJogador():
+    item = {"nome": "Poção", "tipo": "cura", "valor": 20}
+
+    jogador = {
+        "nome": "Ana",
+        "vida": 50,
+        "inventario": [item]
+    }
+
+    assert usarItemJogador(jogador, item) == 0          # CT-J35
+
+    jogador = {
+        "nome": "Ana",
+        "inventario": []
+    }
+
+    assert usarItemJogador(jogador, item) == 1          # CT-J36
+    assert usarItemJogador(None, item) == 2             # CT-J37
+
+    print("testar_usarItemJogador: OK")
+
+testar_usarItemJogador()
+
+print("Todos os testes do módulo Jogador passaram.")
