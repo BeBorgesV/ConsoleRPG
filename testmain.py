@@ -1,4 +1,5 @@
 from main import *
+from jogador import receberDanoJogador
 import builtins
 
 
@@ -19,14 +20,12 @@ def testar_processarComando():
     }
     _, mapa = criarMapa(estrutura)
 
-    entrada_original = builtins.input
-    builtins.input = lambda _="": "4"
-    resultado = processarComando(jogador, mapa, "mover")
-    builtins.input = entrada_original
+    resultado = processarComando(jogador, mapa, "d")
+    assert resultado == 0
 
     assert processarComando(jogador, mapa, "voar") == 1
-    assert processarComando(None, mapa, "mover") == 2
-    assert processarComando(jogador, None, "mover") == 2
+    assert processarComando(None, mapa, "d") == 2
+    assert processarComando(jogador, None, "d") == 2
     assert processarComando(jogador, mapa, None) == 2
     print("testar_processarComando: OK")
 
@@ -39,16 +38,16 @@ def testar_loopJogo():
     }
     _, mapa = criarMapa(estrutura)
 
-    # CT-P06: saída normal com comando "sair"
+    # CT-P06: saída normal com comando "5"
     entrada_original = builtins.input
-    builtins.input = lambda _="": "sair"
+    builtins.input = lambda _="": "5"
     assert loopJogo(jogador, mapa) == 0
     builtins.input = entrada_original
     print("CT-P06: OK")
 
     # CT-P07: jogador morre
     _, jogador2 = criarJogador("Ana")
-    jogador2["vida"] = 0
+    receberDanoJogador("Ana", 100)  # zera vida no estado interno do modulo
     assert loopJogo(jogador2, mapa) == 0
     print("CT-P07: OK")
 

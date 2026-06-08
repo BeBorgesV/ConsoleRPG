@@ -9,14 +9,14 @@ def criarItem(nome, tipo, valor):
     Requisitos funcionais:
         - O item deve possuir nome, tipo e valor.
         - O nome não pode ser vazio.
-        - O tipo deve ser um dos tipos aceitos pelo jogo: "cura" ou "ataque".
+        - O tipo deve ser um dos tipos aceitos pelo jogo: "cura", "ataque" ou "chave".
         - O valor do item deve ser numérico e maior que zero.
         - Em caso de sucesso, o item deve ser armazenado na lista interna de itens.
 
     Acoplamento:
         Entrada:
             nome: nome do item a ser criado.
-            tipo: tipo do item, podendo ser "cura" ou "ataque".
+            tipo: tipo do item, podendo ser "cura", "ataque" ou "chave".
             valor: valor aplicado pelo item.
         Saída:
             id_item: identificador do item criado, correspondente à sua posição na lista interna.
@@ -190,6 +190,20 @@ def verificaIdItemValido(id_item):
 
     return True
 
+
+def itemEhChave(item):
+    """
+    Objetivo:
+        Verificar se uma estrutura de item representa uma chave.
+
+    Acoplamento:
+        Entrada:
+            item: dicionário de item retornado por funções de acesso.
+        Saída:
+            True se o item for uma chave, False caso contrário.
+    """
+    return isinstance(item, dict) and item.get("tipo") == "chave"
+
 def _tipoValido(tipo):
     """
     Objetivo:
@@ -197,7 +211,7 @@ def _tipoValido(tipo):
 
     Requisitos funcionais:
         - O tipo do item deve ser validado antes da criação ou aplicação de um item.
-        - Os tipos aceitos pelo módulo são: "cura" e "ataque".
+        - Os tipos aceitos pelo módulo são: "cura", "ataque" e "chave".
 
     Acoplamento:
         Entrada:
@@ -218,7 +232,7 @@ def _tipoValido(tipo):
             - a lista de tipos válidos permanece interna à função.
     """
 
-    tiposValidos = ("cura", "ataque")
+    tiposValidos = ("cura", "ataque", "chave")
     return tipo in tiposValidos
 
 

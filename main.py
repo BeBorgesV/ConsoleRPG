@@ -4,319 +4,459 @@ import itens
 from jogador import (
     adicionarItemJogador,
     atualizarAtaque,
-    criarJogador,
-    curarJogador,
+    criarJogador as _criarJogador,
     ganharXP,
     getAtaque,
     getInventario,
-    getPosicao,
     getVida,
-    getXP
+    getXP,
+    usarItemJogador
 )
 from mapa import (
-    EVENTO_DESCANSO,
-    EVENTO_INIMIGO,
-    EVENTO_ITEM,
-    EVENTO_SAIDA,
-    EVENTO_VAZIO,
+    alocarInimigoMapa,
+    alocarItemMapa,
     criarMapa,
     descreverPosicaoMapa,
-    getEventoMapa,
+    getInimigoMapa,
+    getItemMapa,
+    getPosicaoInicialMapa,
+    inimigoFinalMapa,
     limparEventoMapa,
     moverJogadorMapa,
+    registrarInimigoDerrotadoMapa,
     renderizarMapa
 )
 
 
-def _resolverEventoAtual(jogador, mapa):
-    codigo_posicao, posicao = getPosicao(jogador)
+ITENS_INICIAIS = [
+    ((2, 12), "Pocao simples", "cura", 25),
+    ((5, 13), "Amuleto de ataque", "ataque", 5),
+    ((1, 10), "Chave da clareira", "chave", 1),
+    ((8, 5), "Chave da ponte", "chave", 1),
+    ((11, 6), "Pocao forte", "cura", 35)
+]
 
-    if codigo_posicao != 0:
-        return codigo_posicao
+INIMIGOS_INICIAIS = [
+    ((5, 11), "Lobo da trilha", 35, 7, False),
+    ((9, 9), "Bandido do bosque", 45, 9, False),
+    ((12, 7), "Guarda do castelo", 55, 11, False),
+    ((13, 2), "Chefe do castelo", 75, 13, True)
+]
 
-    x, y = posicao
-    codigo_evento, evento = getEventoMapa(mapa, x, y)
+DIRECOES = ["cima", "baixo", "esquerda", "direita"]
+COMANDOS_SAIDA = ["salvar e sair", "5"]
+ATALHOS = {
+    "w": "cima",
+    "s": "baixo",
+    "a": "esquerda",
+    "d": "direita",
+    "1": "inventario",
+    "2": "mapa",
+    "5": "salvar e sair"
+}
 
-    if codigo_evento != 0:
-        return codigo_evento
 
-    if evento == EVENTO_VAZIO:
+def criarJogador(nome):
+    resultado = _criarJogador(nome)
+
+    if isinstance(resultado, dict):
+        return 0, resultado
+
+    return resultado, None
+
+
+def _nomeJogador(jogador):
+    if isinstance(jogador, dict):
+        return jogador.get("nome")
+
+    return jogador
+
+
+def _posicaoJogador(jogador):
+    if not isinstance(jogador, dict):
+        return 2, None
+
+    if "posicao" not in jogador:
+        return 1, None
+
+    return 0, jogador["posicao"]
+
+
+def _obterDadosItem(id_item):
+    if not itens.verificaIdItemValido(id_item):
+        return None
+    estado = itens.exportarEstadoItens()
+    if id_item >= len(estado):
+        return None
+    return estado[id_item].copy()
+
+
+def _contarChaves(jogador):
+    codigo, inventario = getInventario(_nomeJogador(jogador))
+
+    if codigo != 0:
         return 0
 
-    if evento == EVENTO_ITEM:
-        codigo_item, item = itens.criarItem("Pocao simples", "cura", 20)
+    total = 0
 
-        if codigo_item != 0:
-            return codigo_item
+    for item in inventario:
+        if itens.itemEhChave(item):
+            total += 1
 
-        codigo_adicionar = adicionarItemJogador(jogador, item)
+    return total
 
-        if codigo_adicionar == 0:
-            print("  Achado  : Pocao simples adicionada ao inventario.")
+
+def _garantirPosicaoJogador(jogador, mapa):
+    if not isinstance(jogador, dict) or mapa is None:
+        return 2
+
+    if "posicao" in jogador:
+        return 0
+
+    status, posicao = getPosicaoInicialMapa(mapa)
+
+    if status == 0:
+        jogador["posicao"] = posicao
+
+    return status
+
+
+def _prepararEntidades(mapa):
+    if itens.restaurarEstadoItens([]) != 0:
+        return 1
+
+    for posicao, nome, tipo, valor in ITENS_INICIAIS:
+        status, id_item = itens.criarItem(nome, tipo, valor)
+
+        if status != 0 or not itens.verificaIdItemValido(id_item):
+            return 1
+
+        if alocarItemMapa(mapa, posicao[0], posicao[1], id_item) != 0:
+            return 1
+
+    if inimigos.restaurarEstadoInimigos([]) != 0:
+        return 1
+
+    for posicao, nome, vida, ataque, final in INIMIGOS_INICIAIS:
+        status, id_inimigo = inimigos.criarInimigo(nome, vida, ataque)
+
+        if status != 0 or not inimigos.verificaIdInimigoValido(id_inimigo):
+            return 1
+
+        if alocarInimigoMapa(mapa, posicao[0], posicao[1], id_inimigo, final) != 0:
+            return 1
+
+    return 0
+
+
+def _resolverEventoAtual(jogador, mapa):
+    nome = _nomeJogador(jogador)
+    status, posicao = _posicaoJogador(jogador)
+
+    if status != 0:
+        return status
+
+    x, y = posicao
+    status_item, id_item = getItemMapa(mapa, x, y)
+
+    if status_item == 0:
+        item = _obterDadosItem(id_item)
+
+        if item is None:
+            return 1
+
+        status_adicionar = adicionarItemJogador(nome, item)
+
+        if status_adicionar == 0:
+            if itens.itemEhChave(item):
+                print(f"  Chave   : {item['nome']} obtida ({_contarChaves(jogador)}/2).")
+            else:
+                print(f"  Achado  : {item['nome']} adicionado ao inventario.")
+
             limparEventoMapa(mapa, x, y)
             return 0
 
-        if codigo_adicionar == 1:
+        if status_adicionar == 1:
             print("  Achado  : ha um item aqui, mas o inventario esta cheio.")
             return 0
 
-        return codigo_adicionar
+        return status_adicionar
 
-    if evento == EVENTO_DESCANSO:
-        codigo_cura = curarJogador(jogador, 20)
+    status_inimigo, id_inimigo = getInimigoMapa(mapa, x, y)
 
-        if codigo_cura == 0:
-            print("  Descanso: voce recuperou 20 pontos de vida.")
-            limparEventoMapa(mapa, x, y)
-            return 0
+    if status_inimigo != 0:
+        return 2 if status_item == 2 or status_inimigo == 2 else 0
 
-        if codigo_cura == 1:
-            print("  Descanso: sua vida ja esta cheia.")
-            return 0
+    if not inimigos.verificaIdInimigoValido(id_inimigo):
+        return 1
 
-        return codigo_cura
+    status_final, chefe = inimigoFinalMapa(mapa, x, y)
 
-    if evento == EVENTO_INIMIGO:
-        codigo_inimigo, inimigo_atual = inimigos.criarInimigo(
-            "Sentinela da dungeon",
-            35,
-            8
-        )
+    if status_final != 0:
+        return status_final
 
-        if codigo_inimigo != 0:
-            return codigo_inimigo
+    if chefe:
+        print("  Alerta  : voce encontrou o chefe da torre.")
 
-        codigo_batalha, vencedor = batalha.executarBatalha(jogador, inimigo_atual)
+    status_batalha, vencedor = batalha.executarBatalha(jogador, id_inimigo)
 
-        if codigo_batalha != 0:
-            return codigo_batalha
+    if status_batalha != 0:
+        return status_batalha
 
-        if vencedor == "jogador":
-            ganharXP(jogador, 50)
-            atualizarAtaque(jogador)
-            limparEventoMapa(mapa, x, y)
-            print("  XP      : voce ganhou 50 pontos de experiencia.")
-
+    if vencedor != "jogador":
         return 0
 
-    if evento == EVENTO_SAIDA:
-        print("  Objetivo: voce entrou na dungeon.")
-        print("\nFim de jogo: objetivo concluido!")
+    xp = 120 if chefe else 50
+    registrarInimigoDerrotadoMapa(mapa, x, y)
+    ganharXP(nome, xp)
+    atualizarAtaque(nome)
+    print(f"  XP      : voce ganhou {xp} pontos de experiencia.")
+
+    if chefe:
+        print("  Objetivo: chefe derrotado.")
+        print("\nFim de jogo: voce atravessou o bosque e venceu o chefe do castelo!")
         return 3
 
-    return 1
+    return 0
+
 
 def iniciarJogo(nome):
     if nome is None:
         return 2, None, None
 
     status, jogador = criarJogador(nome)
-    if status != 0:
+
+    if status != 0 or jogador is None:
         return 1, None, None
 
     status, mapa = criarMapa()
+
+    if status != 0 or _prepararEntidades(mapa) != 0:
+        return 1, None, None
+
+    status, posicao = getPosicaoInicialMapa(mapa)
+
     if status != 0:
         return 1, None, None
 
-    jogador["posicao"] = mapa["posicao_inicial"]
-
+    jogador["posicao"] = posicao
     return 0, jogador, mapa
+
 
 def exibirStatus(jogador, mapa):
     if jogador is None or mapa is None:
         return 1
 
-    # O "_" é usado quando não precisamos do código de status retornado pela função.
-    # As funções get retornam uma tupla (status, valor). Exemplo: getVida(jogador) retorna (0, 100)
-    # Ao escrever:  _, vida = getVida(jogador)
-    # "_" recebe o status (0) e é ignorado, "vida" recebe o valor (100) e é usado
-    _, vida = getVida(jogador)
-    _, xp = getXP(jogador)
-    _, ataque = getAtaque(jogador)
-    _, posicao = getPosicao(jogador)
+    status = _garantirPosicaoJogador(jogador, mapa)
 
-    barras = int((vida / jogador["vida_max"]) * 10)
+    if status != 0:
+        return status
+
+    nome = _nomeJogador(jogador)
+    _, vida = getVida(nome)
+    _, ataque = getAtaque(nome)
+    _, xp = getXP(nome)
+    _, posicao = _posicaoJogador(jogador)
+    chaves = _contarChaves(jogador)
+    vida_maxima = jogador.get("vida_max", 100)
+    barras = int((vida / vida_maxima) * 10)
     barra_vida = "█" * barras + "░" * (10 - barras)
 
     print("=" * 30)
-    print(f"  Jogador : {jogador['nome']}")
-    print(f"  Vida    : [{barra_vida}] {vida}/{jogador['vida_max']}")
+    print(f"  Jogador : {nome}")
+    print(f"  Vida    : [{barra_vida}] {vida}/{vida_maxima}")
     print(f"  Ataque  : {ataque}")
     print(f"  XP      : {xp}")
+    print(f"  Chaves  : {chaves}/2")
     print(f"  Posição : {posicao}")
     print("=" * 30)
     return 0
 
-COMANDOS_VALIDOS = {
-    "cima",
-    "baixo",
-    "esquerda",
-    "direita",
-    "w",
-    "a",
-    "s",
-    "d",
-    "mover",
-    "sair",
-    "salvar",
-    "salvar e sair",
-    "inventario",
-    "mapa",
-    "1",
-    "7"
-}
 
-COMANDOS_SAIDA = ["sair", "salvar", "salvar e sair", "7"]
-
-DIRECOES_ATALHO = {
-    "w": "cima",
-    "s": "baixo",
-    "a": "esquerda",
-    "d": "direita"
-}
-
-
-def _normalizarDirecao(entrada):
-    if entrada is None or not isinstance(entrada, str):
+def _normalizarComando(comando):
+    if not isinstance(comando, str):
         return None
 
-    entrada = entrada.strip().lower()
-
-    if entrada in DIRECOES_ATALHO:
-        return DIRECOES_ATALHO[entrada]
-
-    if entrada in ["cima", "baixo", "esquerda", "direita"]:
-        return entrada
-
-    return None
+    comando = comando.strip().lower()
+    return ATALHOS.get(comando, comando)
 
 
-def _normalizarComando(entrada):
-    if entrada == "1":
-        return "inventario"
+def _exibirMapa(jogador, mapa):
+    _, posicao = _posicaoJogador(jogador)
+    status, desenho = renderizarMapa(mapa, posicao)
 
-    if entrada == "7":
-        return "salvar e sair"
+    if status == 0:
+        print(desenho)
 
-    return entrada
+    return status
 
 
-def _exibirMiniMapa(jogador, mapa):
-    _, posicao = getPosicao(jogador)
-    status_mapa, desenho = renderizarMapa(mapa, posicao)
+def _exibirInventario(jogador):
+    nome = _nomeJogador(jogador)
+    _, vida = getVida(nome)
+    _, ataque = getAtaque(nome)
+    _, xp = getXP(nome)
+    _, posicao = _posicaoJogador(jogador)
+    _, inventario = getInventario(nome)
+    chaves = _contarChaves(jogador)
+    nomes = []
 
-    if status_mapa != 0:
-        return status_mapa
+    for item in inventario:
+        if isinstance(item, dict):
+            nomes.append(item.get("nome", "Item"))
+        else:
+            nomes.append(str(item))
 
-    print(desenho)
+    texto_inventario = ", ".join(nomes) if nomes else "vazio"
+
+    print("=" * 30)
+    print(f"  Jogador : {nome}")
+    print(f"  Vida    : {vida}/{jogador.get('vida_max', 100)}")
+    print(f"  Ataque  : {ataque}")
+    print(f"  XP      : {xp}")
+    print(f"  Chaves  : {chaves}/2")
+    print(f"  Posição : {posicao}")
+    print(f"  Inventário: {texto_inventario}")
+    print("=" * 30)
     return 0
 
 
-def _processarMovimento(jogador, mapa, direcao):
-    status = moverJogadorMapa(mapa, jogador, direcao)
+def _usarItemMapa(jogador):
+    nome = _nomeJogador(jogador)
+    _, inventario = getInventario(nome)
+    usaveis = [item for item in inventario if isinstance(item, dict) and item.get("tipo") in ["cura", "ataque"]]
 
-    if status != 0:
-        print("Movimento inválido. Tente outra direção.")
-        return _exibirMiniMapa(jogador, mapa)
+    if not usaveis:
+        print("  Nenhum item utilizável no inventário.")
+        return 0
 
-    _, posicao = getPosicao(jogador)
-    print(f"  Posição : {posicao}")
+    for i, item in enumerate(usaveis):
+        print(f"  {i + 1} - {item.get('nome', 'Item')} ({item.get('tipo')}: +{item.get('valor', 0)})")
+    print("  0 - Cancelar")
 
-    status_descricao, descricao = descreverPosicaoMapa(mapa, posicao[0], posicao[1])
-    if status_descricao == 0:
-        print(f"  Local   : {descricao['texto']}")
+    try:
+        escolha = input("  Usar item: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        return 0
 
-    status_evento = _resolverEventoAtual(jogador, mapa)
+    if not escolha.isdigit() or int(escolha) == 0:
+        return 0
 
-    if status_evento != 0:
-        return status_evento
+    num = int(escolha)
+    if num < 1 or num > len(usaveis):
+        print("  Opção inválida.")
+        return 0
 
-    return _exibirMiniMapa(jogador, mapa)
+    item = usaveis[num - 1]
+    codigo = usarItemJogador(nome, item)
+
+    if codigo == 0:
+        print(f"  {item.get('nome', 'Item')} utilizado.")
+    else:
+        print("  Não foi possível usar o item.")
+
+    return 0
+
 
 def processarComando(jogador, mapa, comando):
-    # CT-P05: parâmetros inválidos
     if jogador is None or mapa is None or comando is None:
         return 2
-    if not isinstance(comando, str) or not comando.strip():
+
+    comando = _normalizarComando(comando)
+
+    if comando is None:
         return 2
 
-    # CT-P04: comando inválido
-    comando = _normalizarComando(comando.strip().lower())
-
-    direcao = _normalizarDirecao(comando)
-
-    if comando not in COMANDOS_VALIDOS and direcao is None:
+    if not comando:
         return 1
 
-    # CT-P03: comando válido
-    if direcao is not None:
-        return _processarMovimento(jogador, mapa, direcao)
+    status = _garantirPosicaoJogador(jogador, mapa)
 
-    if comando == "mover":
-        print("Para onde deseja mover?")
-        print("W - Cima")
-        print("S - Baixo")
-        print("A - Esquerda")
-        print("D - Direita")
-        direcao = _normalizarDirecao(input("Escolha: "))
+    if status != 0:
+        return status
 
-        if direcao is None:
-            print("Direção inválida.")
-            return 0
+    if comando in DIRECOES:
+        status_movimento = moverJogadorMapa(mapa, jogador, comando, _contarChaves(jogador) >= 2)
 
-        return _processarMovimento(jogador, mapa, direcao)
+        if status_movimento == 3:
+            print(f"  Portão trancado. Você tem {_contarChaves(jogador)}/2 chaves.")
+            return _exibirMapa(jogador, mapa)
+
+        if status_movimento != 0:
+            print("Movimento inválido. Tente outra direção.")
+            return _exibirMapa(jogador, mapa)
+
+        _, posicao = _posicaoJogador(jogador)
+        print(f"  Posição : {posicao}")
+
+        status_descricao, descricao = descreverPosicaoMapa(mapa, posicao[0], posicao[1])
+
+        if status_descricao == 0:
+            print(f"  Local   : {descricao}")
+
+        status_evento = _resolverEventoAtual(jogador, mapa)
+
+        if status_evento != 0:
+            return status_evento
+
+        return _exibirMapa(jogador, mapa)
 
     if comando == "inventario":
-        _, vida = getVida(jogador)
-        _, xp = getXP(jogador)
-        _, ataque = getAtaque(jogador)
-        _, posicao = getPosicao(jogador)
-        _, inventario = getInventario(jogador)
-        print("=" * 30)
-        print(f"  Jogador : {jogador['nome']}")
-        print(f"  Vida    : {vida}/{jogador['vida_max']}")
-        print(f"  Ataque  : {ataque}")
-        print(f"  XP      : {xp}")
-        print(f"  Posição : {posicao}")
-        print(f"  Inventário: {inventario if inventario else 'vazio'}")
-        print("=" * 30)
+        _exibirInventario(jogador)
+        return _usarItemMapa(jogador)
 
-    elif comando == "mapa":
-        return _exibirMiniMapa(jogador, mapa)
-    return 0
+    if comando == "mapa":
+        return _exibirMapa(jogador, mapa)
+
+    if comando == "salvar e sair":
+        return 0
+
+    return 1
+
 
 def loopJogo(jogador, mapa):
     if jogador is None or mapa is None:
         return 2
 
-    # exibe status só no início
-    exibirStatus(jogador, mapa)
-    _, vida_inicial = getVida(jogador)
+    if _garantirPosicaoJogador(jogador, mapa) != 0:
+        return 2
 
-    if vida_inicial > 0:
-        _exibirMiniMapa(jogador, mapa)
+    exibirStatus(jogador, mapa)
+    print("Objetivo : pegue 2 chaves, entre no castelo e derrote o chefe.")
+
+    nome = _nomeJogador(jogador)
+
+    if getVida(nome)[1] > 0:
+        _exibirMapa(jogador, mapa)
 
     while True:
-        _, vida = getVida(jogador)
+        _, vida = getVida(nome)
+
         if vida <= 0:
             print("\nVocê morreu. Fim de jogo.")
             return 0
 
         print("\n" + "-" * 46)
         print("Movimento: W-Cima | S-Baixo | A-Esquerda | D-Direita")
-        print("Ações    : 1-Inventário | 7-Sair")
+        print("Ações    : 1-Inventário | 2-Mapa | 5-Salvar e sair")
 
         try:
-            comando = _normalizarComando(input("\n> Escolha: ").strip().lower())
+            comando = input("\n> Escolha: ")
         except (EOFError, KeyboardInterrupt):
             print("\nJogo interrompido.")
             return 0
 
-        if comando in COMANDOS_SAIDA:
+        comando_normalizado = _normalizarComando(comando)
+
+        if not comando_normalizado:
+            print("Escolha uma opção.")
+            continue
+
+        if comando_normalizado in COMANDOS_SAIDA:
             print("Encerrando o jogo...")
             return 0
 
-        status = processarComando(jogador, mapa, comando)
+        status = processarComando(jogador, mapa, comando_normalizado)
 
         if status == 1:
             print(f"Comando '{comando}' inválido. Tente outro.")
@@ -326,10 +466,12 @@ def loopJogo(jogador, mapa):
         elif status == 3:
             return 0
 
+
 if __name__ == "__main__":
     print("=== ConsoleRPG ===")
     nome = input("Digite seu nome: ")
     status, jogador, mapa = iniciarJogo(nome)
+
     if status != 0:
         print("Erro ao iniciar jogo!")
     else:

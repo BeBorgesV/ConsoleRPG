@@ -1,227 +1,170 @@
 __all__ = [
-    "EVENTO_VAZIO",
-    "EVENTO_INIMIGO",
-    "EVENTO_ITEM",
-    "EVENTO_DESCANSO",
-    "EVENTO_SAIDA",
     "criarMapa",
     "posicaoValida",
-    "temObstaculo",
-    "getEventoMapa",
+    "getItemMapa",
+    "getInimigoMapa",
+    "alocarItemMapa",
+    "alocarInimigoMapa",
     "limparEventoMapa",
-    "desativarEventoMapa",
+    "registrarInimigoDerrotadoMapa",
+    "inimigoFinalMapa",
     "moverJogadorMapa",
     "getPosicaoInicialMapa",
-    "getTamanhoMapa",
     "descreverPosicaoMapa",
     "renderizarMapa"
 ]
 
 EVENTO_VAZIO = "vazio"
-EVENTO_INIMIGO = "inimigo"
 EVENTO_ITEM = "item"
-EVENTO_DESCANSO = "descanso"
-EVENTO_SAIDA = "saida"
+EVENTO_INIMIGO = "inimigo"
+EVENTO_CHEFE = "chefe"
 
-EVENTOS_VALIDOS = [
-    EVENTO_VAZIO,
-    EVENTO_INIMIGO,
-    EVENTO_ITEM,
-    EVENTO_DESCANSO,
-    EVENTO_SAIDA
-]
-
-DIRECOES = {
+_EVENTOS_VALIDOS = [EVENTO_VAZIO, EVENTO_ITEM, EVENTO_INIMIGO, EVENTO_CHEFE]
+_DIRECOES = {
+    "w": (0, -1),
+    "s": (0, 1),
+    "a": (-1, 0),
+    "d": (1, 0),
     "cima": (0, -1),
     "baixo": (0, 1),
     "esquerda": (-1, 0),
-    "direita": (1, 0),
-    "frente": (1, 0),
-    "tras": (-1, 0)
+    "direita": (1, 0)
 }
-
+_SIMBOLOS = {
+    EVENTO_ITEM: "!",
+    EVENTO_INIMIGO: "M",
+    EVENTO_CHEFE: "Ω"
+}
 _SEM_ESTRUTURA = object()
 
 
-def _mapaPadrao():
-    # Pequena historia para o trabalho: atravessar salas externas ate a dungeon.
-    return {
-        "nome": "Ruinas antes da Dungeon",
-        "regioes": ["bosque", "ruinas", "sala da fonte", "entrada da dungeon"],
-        "tamanho": (8, 7),
-        "posicao_inicial": (0, 3),
-        "obstaculos": [
-            (3, 0),
-            (1, 1), (3, 1), (5, 1),
-            (1, 2), (5, 2), (7, 2),
-            (3, 3),
-            (1, 4), (3, 4), (5, 4), (7, 4),
-            (1, 5), (5, 5),
-            (3, 6)
-        ],
-        "eventos": {
-            (2, 0): EVENTO_ITEM,
-            (6, 0): EVENTO_INIMIGO,
-            (2, 5): EVENTO_DESCANSO,
-            (6, 5): EVENTO_ITEM,
-            (5, 6): EVENTO_INIMIGO,
-            (7, 0): EVENTO_SAIDA,
-            (7, 6): EVENTO_SAIDA
-        },
-        "descricoes": {
-            (0, 3): "Clareira inicial. As ruinas estao logo a frente.",
-            (2, 0): "Uma sala lateral guarda uma mochila esquecida.",
-            (6, 0): "Um guarda bloqueia a entrada norte da dungeon.",
-            (2, 5): "A sala da fonte permite recuperar o folego.",
-            (6, 5): "Um bau simples esta perto da passagem inferior.",
-            (5, 6): "Um inimigo patrulha o corredor sul.",
-            (7, 0): "Entrada norte da dungeon.",
-            (7, 6): "Entrada sul da dungeon."
-        },
-        "salas": {
-            1: {"frente": 2},
-            2: {"tras": 1, "frente": 3},
-            3: {"tras": 2}
-        },
-        "eventos_salas": {
-            3: EVENTO_ITEM
-        },
-        "obstaculos_salas": [3]
-    }
+def _ehPosicao(posicao):
+    return (
+        isinstance(posicao, tuple) and
+        len(posicao) == 2 and
+        isinstance(posicao[0], int) and
+        isinstance(posicao[1], int)
+    )
 
 
-def _coordenadaValida(coordenada):
-    if not isinstance(coordenada, tuple):
-        return False
-
-    if len(coordenada) != 2:
-        return False
-
-    x, y = coordenada
-    return isinstance(x, int) and isinstance(y, int)
+def _dentroDoMapa(tamanho, posicao):
+    return _ehPosicao(posicao) and 0 <= posicao[0] < tamanho[0] and 0 <= posicao[1] < tamanho[1]
 
 
 def _estruturaValida(estrutura):
-    if not isinstance(estrutura, dict) or len(estrutura) == 0:
+    if not isinstance(estrutura, dict):
         return False
 
-    if "regioes" not in estrutura:
-        return False
+    for campo in ["regioes", "tamanho", "posicao_inicial"]:
+        if campo not in estrutura:
+            return False
 
-    if "tamanho" not in estrutura:
-        return False
-
-    if "posicao_inicial" not in estrutura:
-        return False
-
-    if not isinstance(estrutura["regioes"], list):
-        return False
-
-    if not _coordenadaValida(estrutura["tamanho"]):
-        return False
-
-    if not _coordenadaValida(estrutura["posicao_inicial"]):
+    if not isinstance(estrutura["regioes"], list) or not _ehPosicao(estrutura["tamanho"]):
         return False
 
     largura, altura = estrutura["tamanho"]
-
     if largura <= 0 or altura <= 0:
         return False
 
-    x_inicial, y_inicial = estrutura["posicao_inicial"]
-
-    if x_inicial < 0 or y_inicial < 0:
+    if not _dentroDoMapa(estrutura["tamanho"], estrutura["posicao_inicial"]):
         return False
 
-    if x_inicial >= largura or y_inicial >= altura:
-        return False
+    tipos_opcionais = {
+        "obstaculos": list,
+        "eventos": dict,
+        "descricoes": dict,
+        "portao_castelo": tuple
+    }
 
-    if "obstaculos" in estrutura and not isinstance(estrutura["obstaculos"], list):
-        return False
+    for campo, tipo in tipos_opcionais.items():
+        if campo in estrutura and not isinstance(estrutura[campo], tipo):
+            if campo == "portao_castelo" and estrutura[campo] is None:
+                continue
 
-    if "eventos" in estrutura and not isinstance(estrutura["eventos"], dict):
-        return False
+            return False
 
     return True
 
 
 def _mapaValido(mapa):
-    if not isinstance(mapa, dict):
-        return False
-
     campos = ["regioes", "tamanho", "posicao_inicial", "obstaculos", "eventos"]
-
-    for campo in campos:
-        if campo not in mapa:
-            return False
-
-    return _estruturaValida(mapa)
+    return isinstance(mapa, dict) and all(campo in mapa for campo in campos) and _estruturaValida(mapa)
 
 
-def _dentroDoMapa(mapa, x, y):
-    largura, altura = mapa["tamanho"]
-    return x >= 0 and y >= 0 and x < largura and y < altura
+def _posicoesValidas(posicoes, tamanho, proibidas):
+    validas = []
+
+    for posicao in posicoes:
+        if _dentroDoMapa(tamanho, posicao) and posicao not in proibidas and posicao not in validas:
+            validas.append(posicao)
+
+    return validas
 
 
-def _copiarLista(lista):
-    copia = []
+def _caminhoPadrao():
+    return [
+        (1, 13), (2, 13), (3, 13),
+        (3, 12), (3, 11), (4, 11), (5, 11), (6, 11), (7, 11),
+        (7, 10), (7, 9), (8, 9), (9, 9), (10, 9),
+        (10, 8), (10, 7), (11, 7), (12, 7), (13, 7),
+        (13, 6), (13, 5), (13, 4), (13, 3), (13, 2),
+        (2, 12), (2, 11), (2, 10), (1, 10),
+        (4, 13), (5, 13),
+        (9, 7), (8, 7), (8, 6), (8, 5),
+        (11, 6)
+    ]
 
-    for item in lista:
-        copia.append(item)
 
-    return copia
-
-
-def _normalizarObstaculos(estrutura):
+def _mapaPadrao():
+    tamanho = (15, 15)
+    caminho = _caminhoPadrao()
     obstaculos = []
-    largura, altura = estrutura["tamanho"]
-    posicao_inicial = estrutura["posicao_inicial"]
 
-    for obstaculo in estrutura.get("obstaculos", []):
-        if not _coordenadaValida(obstaculo):
-            continue
+    for y in range(tamanho[1]):
+        for x in range(tamanho[0]):
+            if (x, y) not in caminho:
+                obstaculos.append((x, y))
 
-        x, y = obstaculo
+    return {
+        "nome": "Bosque do Castelo",
+        "regioes": ["entrada do bosque", "trilha fechada", "castelo antigo"],
+        "tamanho": tamanho,
+        "posicao_inicial": (1, 13),
+        "obstaculos": obstaculos,
+        "eventos": {},
+        "portao_castelo": (13, 4),
+        "descricoes": {
+            (1, 13): "Entrada do bosque. O caminho segue para leste.",
+            (2, 12): "Uma pocao simples foi deixada perto da trilha.",
+            (3, 11): "Bifurcacao: o desvio oeste parece levar a uma chave.",
+            (1, 10): "Uma chave antiga esta presa em um galho baixo.",
+            (5, 11): "Um lobo bloqueia a primeira passagem.",
+            (5, 13): "Um amuleto de ataque brilha no fim do desvio.",
+            (7, 9): "A trilha estreita força voce a seguir pela curva.",
+            (10, 7): "Bifurcacao: a oeste ha pedras suspeitas; a leste fica o castelo.",
+            (8, 5): "A segunda chave esta escondida perto das pedras.",
+            (9, 9): "Um bandido guarda a curva do bosque.",
+            (11, 6): "Uma pocao forte esta escondida antes do portao.",
+            (12, 7): "Um guarda protege a entrada do castelo.",
+            (13, 5): "O portao do castelo esta logo ao norte.",
+            (13, 4): "Portao do castelo. Ele exige duas chaves.",
+            (13, 2): "Sala do chefe. A batalha final começa aqui."
+        }
+    }
 
-        if x < 0 or y < 0 or x >= largura or y >= altura:
-            continue
 
-        if obstaculo == posicao_inicial:
-            continue
+def _normalizarEventos(eventos, tamanho, bloqueadas):
+    eventos_validos = {}
 
-        if obstaculo not in obstaculos:
-            obstaculos.append(obstaculo)
+    for posicao, evento in eventos.items():
+        if _dentroDoMapa(tamanho, posicao) and posicao not in bloqueadas and evento in _EVENTOS_VALIDOS:
+            eventos_validos[posicao] = evento
 
-    return obstaculos
-
-
-def _normalizarEventos(estrutura, obstaculos):
-    eventos = {}
-    largura, altura = estrutura["tamanho"]
-    posicao_inicial = estrutura["posicao_inicial"]
-
-    for posicao in estrutura.get("eventos", {}):
-        if not _coordenadaValida(posicao):
-            continue
-
-        x, y = posicao
-        evento = estrutura["eventos"][posicao]
-
-        if x < 0 or y < 0 or x >= largura or y >= altura:
-            continue
-
-        if posicao == posicao_inicial or posicao in obstaculos:
-            continue
-
-        if evento not in EVENTOS_VALIDOS:
-            continue
-
-        eventos[posicao] = evento
-
-    return eventos
+    return eventos_validos
 
 
 def criarMapa(estrutura=_SEM_ESTRUTURA):
+    """Cria o TAD mapa e retorna (0, mapa), (1, None) ou (2, None)."""
     if estrutura is _SEM_ESTRUTURA:
         estrutura = _mapaPadrao()
     elif estrutura is None:
@@ -230,276 +173,216 @@ def criarMapa(estrutura=_SEM_ESTRUTURA):
     if not _estruturaValida(estrutura):
         return 1, None
 
-    obstaculos = _normalizarObstaculos(estrutura)
-    eventos = _normalizarEventos(estrutura, obstaculos)
+    tamanho = estrutura["tamanho"]
+    inicial = estrutura["posicao_inicial"]
+    obstaculos = _posicoesValidas(estrutura.get("obstaculos", []), tamanho, [inicial])
 
     mapa = {
         "nome": estrutura.get("nome", "Mapa"),
-        "regioes": _copiarLista(estrutura["regioes"]),
-        "tamanho": estrutura["tamanho"],
-        "posicao_inicial": estrutura["posicao_inicial"],
+        "regioes": list(estrutura["regioes"]),
+        "tamanho": tamanho,
+        "posicao_inicial": inicial,
         "obstaculos": obstaculos,
-        "eventos": eventos,
-        "descricoes": estrutura.get("descricoes", {}),
-        "salas": estrutura.get("salas", {}),
-        "eventos_salas": estrutura.get("eventos_salas", {}),
-        "obstaculos_salas": estrutura.get("obstaculos_salas", [])
+        "eventos": _normalizarEventos(estrutura.get("eventos", {}), tamanho, obstaculos + [inicial]),
+        "itens": {},
+        "inimigos": {},
+        "chefes": [],
+        "descricoes": dict(estrutura.get("descricoes", {})),
+        "portao_castelo": estrutura.get("portao_castelo")
     }
-
     return 0, mapa
 
 
 def posicaoValida(mapa, x, y):
-    if not _mapaValido(mapa):
+    """Verifica se uma posicao pode ser ocupada: 0 valida, 1 bloqueada, 2 invalida."""
+    if not _mapaValido(mapa) or not isinstance(x, int) or not isinstance(y, int):
         return 2
 
-    if isinstance(y, str):
-        salas = mapa.get("salas", {})
-
-        if x not in salas:
-            return 1
-
-        if y not in salas[x]:
-            return 1
-
-        return 0
-
-    if not isinstance(x, int) or not isinstance(y, int):
-        return 2
-
-    if not _dentroDoMapa(mapa, x, y):
-        return 1
-
-    if (x, y) in mapa["obstaculos"]:
+    if not _dentroDoMapa(mapa["tamanho"], (x, y)) or (x, y) in mapa["obstaculos"]:
         return 1
 
     return 0
 
 
-def temObstaculo(mapa, x, y):
-    if not _mapaValido(mapa):
+def _alocarEvento(mapa, x, y, id_entidade, evento):
+    if not _mapaValido(mapa) or not isinstance(x, int) or not isinstance(y, int):
         return 2
 
-    if y == "sala":
-        # Compatibilidade com testes antigos baseados em salas.
-        if x in mapa.get("obstaculos_salas", []):
-            return 0
-
-        return 1
-
-    if isinstance(y, str):
-        if posicaoValida(mapa, x, y) != 0:
-            return 1
-
-        destino = mapa["salas"][x][y]
-        return temObstaculo(mapa, destino, "sala")
-
-    if not isinstance(x, int) or not isinstance(y, int):
+    if not isinstance(id_entidade, int) or id_entidade < 0:
         return 2
 
-    if not _dentroDoMapa(mapa, x, y):
+    if posicaoValida(mapa, x, y) != 0 or mapa["eventos"].get((x, y), EVENTO_VAZIO) != EVENTO_VAZIO:
         return 1
 
-    if (x, y) in mapa["obstaculos"]:
-        return 0
-
-    return 1
+    mapa["eventos"][(x, y)] = evento
+    return 0
 
 
-def getEventoMapa(mapa, x, y=None):
-    if not _mapaValido(mapa):
-        return 2, None
+def alocarItemMapa(mapa, x, y, id_item):
+    """Aloca um id de item no mapa sem armazenar os dados internos do item."""
+    status = _alocarEvento(mapa, x, y, id_item, EVENTO_ITEM)
 
-    if y is None:
-        if not isinstance(x, int):
-            return 2, None
+    if status == 0:
+        mapa["itens"][(x, y)] = id_item
 
-        evento = mapa.get("eventos_salas", {}).get(x, EVENTO_VAZIO)
+    return status
 
-        if evento != EVENTO_VAZIO:
-            return 0, evento
 
-        return 1, None
+def alocarInimigoMapa(mapa, x, y, id_inimigo, final=False):
+    """Aloca um id de inimigo no mapa, marcando como chefe quando final=True."""
+    evento = EVENTO_CHEFE if final else EVENTO_INIMIGO
+    status = _alocarEvento(mapa, x, y, id_inimigo, evento)
 
-    if not isinstance(x, int) or not isinstance(y, int):
+    if status == 0:
+        mapa["inimigos"][(x, y)] = id_inimigo
+
+        if final:
+            mapa["chefes"].append((x, y))
+
+    return status
+
+
+def getItemMapa(mapa, x, y):
+    """Retorna o id do item alocado em uma posicao."""
+    if not _mapaValido(mapa) or not isinstance(x, int) or not isinstance(y, int):
         return 2, None
 
     if posicaoValida(mapa, x, y) != 0:
         return 1, None
 
-    return 0, mapa["eventos"].get((x, y), EVENTO_VAZIO)
+    if mapa["eventos"].get((x, y), EVENTO_VAZIO) != EVENTO_ITEM:
+        return 1, None
+
+    return (0, mapa["itens"][(x, y)]) if (x, y) in mapa["itens"] else (1, None)
 
 
-def limparEventoMapa(mapa, x, y=None):
-    if not _mapaValido(mapa):
-        return 2
-
-    if y is None:
-        if not isinstance(x, int):
-            return 2
-
-        if x not in mapa.get("eventos_salas", {}):
-            return 1
-
-        if mapa["eventos_salas"][x] == EVENTO_VAZIO:
-            return 1
-
-        mapa["eventos_salas"][x] = EVENTO_VAZIO
-        return 0
-
-    if not isinstance(x, int) or not isinstance(y, int):
-        return 2
+def getInimigoMapa(mapa, x, y):
+    """Retorna o id do inimigo alocado em uma posicao."""
+    if not _mapaValido(mapa) or not isinstance(x, int) or not isinstance(y, int):
+        return 2, None
 
     if posicaoValida(mapa, x, y) != 0:
-        return 1
+        return 1, None
 
-    if (x, y) not in mapa["eventos"]:
-        return 1
+    if mapa["eventos"].get((x, y), EVENTO_VAZIO) not in [EVENTO_INIMIGO, EVENTO_CHEFE]:
+        return 1, None
 
-    if mapa["eventos"][(x, y)] == EVENTO_VAZIO:
+    return (0, mapa["inimigos"][(x, y)]) if (x, y) in mapa["inimigos"] else (1, None)
+
+
+def inimigoFinalMapa(mapa, x, y):
+    """Informa se o inimigo da posicao e o chefe."""
+    if not _mapaValido(mapa) or not isinstance(x, int) or not isinstance(y, int):
+        return 2, None
+
+    return 0, (x, y) in mapa["chefes"]
+
+
+def limparEventoMapa(mapa, x, y):
+    """Remove o evento de uma posicao depois que ele foi resolvido."""
+    if not _mapaValido(mapa) or not isinstance(x, int) or not isinstance(y, int):
+        return 2
+
+    if posicaoValida(mapa, x, y) != 0 or mapa["eventos"].get((x, y), EVENTO_VAZIO) == EVENTO_VAZIO:
         return 1
 
     mapa["eventos"][(x, y)] = EVENTO_VAZIO
     return 0
 
 
-def desativarEventoMapa(mapa, x, y=None):
-    return limparEventoMapa(mapa, x, y)
+def registrarInimigoDerrotadoMapa(mapa, x, y):
+    """Remove o combate de uma posicao depois da vitoria."""
+    if getInimigoMapa(mapa, x, y)[0] != 0:
+        return 1 if _mapaValido(mapa) else 2
+
+    mapa["eventos"][(x, y)] = EVENTO_VAZIO
+    return 0
 
 
-def moverJogadorMapa(mapa, jogador, direcao):
-    if not _mapaValido(mapa) or not isinstance(jogador, dict):
+def moverJogadorMapa(mapa, jogador, direcao, castelo_liberado=True):
+    """Move o jogador no mapa quando o destino e valido."""
+    if not _mapaValido(mapa) or not isinstance(jogador, dict) or not isinstance(direcao, str):
         return 2
 
-    if not isinstance(direcao, str):
-        return 2
+    if "posicao" not in jogador or not _ehPosicao(jogador["posicao"]):
+        return 1
 
     direcao = direcao.strip().lower()
-
-    if "salaAtual" in jogador:
-        sala_atual = jogador["salaAtual"]
-
-        if posicaoValida(mapa, sala_atual, direcao) != 0:
-            return 1
-
-        if temObstaculo(mapa, sala_atual, direcao) == 0:
-            return 1
-
-        jogador["salaAtual"] = mapa["salas"][sala_atual][direcao]
-        return 0
-
-    if "posicao" not in jogador:
+    if direcao not in _DIRECOES:
         return 1
 
-    if not _coordenadaValida(jogador["posicao"]):
-        return 1
-
-    if direcao not in DIRECOES:
-        return 1
-
-    dx, dy = DIRECOES[direcao]
+    dx, dy = _DIRECOES[direcao]
     x, y = jogador["posicao"]
-    novo_x = x + dx
-    novo_y = y + dy
+    destino = (x + dx, y + dy)
 
-    if posicaoValida(mapa, novo_x, novo_y) != 0:
+    if posicaoValida(mapa, destino[0], destino[1]) != 0:
         return 1
 
-    jogador["posicao"] = (novo_x, novo_y)
+    if destino == mapa.get("portao_castelo") and not castelo_liberado:
+        return 3
+
+    jogador["posicao"] = destino
     return 0
 
 
 def getPosicaoInicialMapa(mapa):
-    if not _mapaValido(mapa):
-        return 2, None
-
-    return 0, mapa["posicao_inicial"]
-
-
-def getTamanhoMapa(mapa):
-    if not _mapaValido(mapa):
-        return 2, None
-
-    return 0, mapa["tamanho"]
+    """Retorna a posicao inicial do mapa."""
+    return (0, mapa["posicao_inicial"]) if _mapaValido(mapa) else (2, None)
 
 
 def descreverPosicaoMapa(mapa, x, y):
-    if not _mapaValido(mapa):
-        return 2, None
-
-    if not isinstance(x, int) or not isinstance(y, int):
+    """Retorna uma descricao simples da posicao atual."""
+    if not _mapaValido(mapa) or not isinstance(x, int) or not isinstance(y, int):
         return 2, None
 
     if posicaoValida(mapa, x, y) != 0:
         return 1, None
 
-    _, evento = getEventoMapa(mapa, x, y)
+    return 0, mapa["descricoes"].get((x, y), "Corredor do bosque. Siga pelo caminho aberto.")
 
-    descricao = {
-        "posicao": (x, y),
-        "evento": evento,
-        "obstaculo": False,
-        "texto": mapa.get("descricoes", {}).get((x, y), "Caminho livre.")
-    }
 
-    return 0, descricao
+def _janelaVisao(coordenada, limite):
+    inicio = max(0, coordenada - 2)
+    fim = min(limite - 1, inicio + 4)
+    return max(0, fim - 4), fim
+
+
+def _simbolo(mapa, posicao, jogador):
+    if posicao == jogador:
+        return "@"
+    if posicao == mapa["posicao_inicial"]:
+        return "I"
+    if posicao == mapa.get("portao_castelo"):
+        return "C"
+    if posicao in mapa["obstaculos"]:
+        return "#"
+    return _SIMBOLOS.get(mapa["eventos"].get(posicao), ".")
 
 
 def renderizarMapa(mapa, posicao_jogador=None):
-    if not _mapaValido(mapa):
-        return 2, None
-
-    if posicao_jogador is not None and not _coordenadaValida(posicao_jogador):
+    """Monta o texto do mapa completo ou da visao local 5x5."""
+    if not _mapaValido(mapa) or (posicao_jogador is not None and not _ehPosicao(posicao_jogador)):
         return 2, None
 
     largura, altura = mapa["tamanho"]
-    linhas_mapa = []
 
-    for y in range(altura):
-        linha = []
-
-        for x in range(largura):
-            posicao = (x, y)
-
-            if posicao == posicao_jogador:
-                linha.append("J")
-            elif posicao == mapa["posicao_inicial"]:
-                linha.append("I")
-            elif posicao in mapa["obstaculos"]:
-                linha.append("#")
-            elif mapa["eventos"].get(posicao) == EVENTO_INIMIGO:
-                linha.append("M")
-            elif mapa["eventos"].get(posicao) == EVENTO_ITEM:
-                linha.append("T")
-            elif mapa["eventos"].get(posicao) == EVENTO_DESCANSO:
-                linha.append("+")
-            elif mapa["eventos"].get(posicao) == EVENTO_SAIDA:
-                linha.append("E")
-            else:
-                linha.append(".")
-
-        linhas_mapa.append(" ".join(linha))
-
-    largura_texto = largura * 2 - 1
-    borda = "+" + "-" * (largura_texto + 2) + "+"
-    titulo = "Mapa: " + mapa.get("nome", "Mapa")
-
-    if posicao_jogador is not None:
-        titulo += " | Posicao: " + str(posicao_jogador)
-
-    linhas = [
-        titulo,
-        borda
-    ]
-
-    for linha in linhas_mapa:
-        linhas.append("| " + linha + " |")
-
-    linhas.append(borda)
-
-    if posicao_jogador is not None:
-        linhas.append("J=voce I=inicio #=bloqueio T=item M=inimigo +=descanso E=entrada")
+    if posicao_jogador is None:
+        x1, x2, y1, y2 = 0, largura - 1, 0, altura - 1
+        titulo = "Mapa: " + mapa["nome"]
     else:
-        linhas.append("I=inicio #=bloqueio T=item M=inimigo +=descanso E=entrada")
+        x1, x2 = _janelaVisao(posicao_jogador[0], largura)
+        y1, y2 = _janelaVisao(posicao_jogador[1], altura)
+        titulo = "Visao local: " + mapa["nome"] + " | Posicao: " + str(posicao_jogador)
 
-    return 0, "\n".join(linhas)
+    linhas = []
+    for y in range(y1, y2 + 1):
+        linha = [_simbolo(mapa, (x, y), posicao_jogador) for x in range(x1, x2 + 1)]
+        linhas.append(" ".join(linha))
+
+    largura_visual = (x2 - x1 + 1) * 2 + 1
+    borda = "+" + "-" * largura_visual + "+"
+    desenho = [titulo, borda]
+    desenho += ["| " + linha + " |" for linha in linhas]
+    desenho.append(borda)
+    desenho.append("@=voce I=inicio C=castelo #=parede !=item M=inimigo Ω=chefe")
+    return 0, "\n".join(desenho)

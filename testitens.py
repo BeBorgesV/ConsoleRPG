@@ -1,6 +1,7 @@
 from itens import (
     criarItem,
     aplicarItem,
+    itemEhChave,
     verificaIdItemValido,
     exportarEstadoItens,
     restaurarEstadoItens
@@ -31,6 +32,13 @@ def testar_criarItem():
     assert isinstance(id_item, int)
     assert verificaIdItemValido(id_item) is True
     registrar_ok("CT-T02", "criar item de ataque com dados válidos")
+
+    codigo, id_item = criarItem("Chave", "chave", 1)
+    assert codigo == 0
+    assert isinstance(id_item, int)
+    assert verificaIdItemValido(id_item) is True
+    assert itemEhChave(exportarEstadoItens()[id_item]) is True
+    registrar_ok("CT-T02B", "criar item chave com dados válidos")
 
     # CT-T03
     assert criarItem("", "cura", 20) == (2, None)
