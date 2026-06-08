@@ -1,10 +1,13 @@
 from jogador import *
 
 def testar_criarJogador():
-    # CT-J01
-    assert criarJogador("Ana") == 0
+    # CT-J01 - Sucesso retorna o dicionário cópia
+    res = criarJogador("Ana")
+    assert isinstance(res, dict)
+    assert res["nome"] == "Ana"
+    assert res["vida"] == 100
 
-    # CT-J02
+    # CT-J02 - Erros continuam retornando os códigos numéricos
     assert criarJogador("") == 1
 
     # CT-J03
@@ -59,20 +62,6 @@ def testar_getAtaque():
 testar_getAtaque()
 
 
-def testar_getPosicao():
-    criarJogador("Ana")
-
-    # CT-J13
-    assert getPosicao("Ana") == (0, (0, 0))
-
-    # CT-J14 / CT-J15
-    assert getPosicao("Inexistente") == (2, None)
-
-    print("testar_getPosicao: OK")
-
-testar_getPosicao()
-
-
 def testar_getInventario():
     criarJogador("Ana")
 
@@ -85,24 +74,6 @@ def testar_getInventario():
     print("testar_getInventario: OK")
 
 testar_getInventario()
-
-
-def testar_moverJogador():
-    criarJogador("Ana")
-
-    # CT-J19
-    assert moverJogador("Ana", 1, 0) == 0
-    assert getPosicao("Ana") == (0, (1, 0))
-
-    # CT-J20
-    assert moverJogador("Ana", None, 1) == 2
-
-    # CT-J21
-    assert moverJogador("Inexistente", 1, 0) == 2
-
-    print("testar_moverJogador: OK")
-
-testar_moverJogador()
 
 
 def testar_receberDanoJogador():
@@ -232,4 +203,14 @@ def testar_usarItemJogador():
 
 testar_usarItemJogador()
 
-print("Todos os testes do módulo Jogador passaram.")
+def testar_encapsulamento():
+    # Teste extra para garantir que modificações externas não alteram o TAD original
+    res = criarJogador("Carlos")
+    res["vida"] = 999  # Tenta trapacear alterando o retorno direto
+    
+    assert getVida("Carlos") == (0, 100) # O TAD original deve continuar intacto (100)
+    print("testar_encapsulamento: OK")
+
+testar_encapsulamento()
+
+print("Todos os testes do módulo Jogador adaptado passaram.")

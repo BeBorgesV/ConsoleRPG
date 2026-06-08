@@ -1,11 +1,11 @@
+import copy
+
 __all__ = [
     "criarJogador",
     "getVida",
     "getXP",
     "getAtaque",
-    "getPosicao",
     "getInventario",
-    "moverJogador",
     "receberDanoJogador",
     "curarJogador",
     "ganharXP",
@@ -32,20 +32,20 @@ def criarJogador(nome):
 
     nome_limpo = nome.strip()
     
-    # Se o jogador já existir, podemos retornar código de erro ou sucesso dependendo da regra.
-    # Assumiremos criação com sucesso/reinicialização para manter o padrão.
     jogador = {
         "nome": nome_limpo,
         "vida": 100,
         "vida_max": 100,
         "xp": 0,
         "ataque": 10,
-        "posicao": (0, 0),
         "vivo": True,
         "inventario": []
     }
     _jogadores[nome_limpo] = jogador
-    return 0
+    
+    # Retorna uma cópia para que o jogo não quebre, mas proteja o dict original
+    retorno_seguro = copy.deepcopy(jogador)
+    return retorno_seguro
 
 
 def getVida(nome):
@@ -90,20 +90,6 @@ def getAtaque(nome):
     return 0, jogador["ataque"]
 
 
-def getPosicao(nome):
-    # CT-J14 - consultar posição com jogador inválido
-    if not _jogadorExiste(nome):
-        return 2, None
-
-    jogador = _jogadores[nome]
-    # CT-J15 - consultar posição sem campo posição
-    if "posicao" not in jogador:
-        return 1, None
-
-    # CT-J13 - consultar posição válida
-    return 0, jogador["posicao"]
-
-
 def getInventario(nome):
     # CT-J17 - consultar inventário com jogador inválido
     if not _jogadorExiste(nome):
@@ -114,33 +100,8 @@ def getInventario(nome):
     if "inventario" not in jogador:
         return 1, None
 
-    # CT-J16 - consultar inventário válido
-    return 0, jogador["inventario"]
-
-
-def moverJogador(nome, dx, dy):
-    # CT-J21 - jogador inválido
-    if not _jogadorExiste(nome):
-        return 2
-
-    # CT-J20 - parâmetros inválidos
-    if dx is None or dy is None:
-        return 2
-
-    if not isinstance(dx, (int, float)):
-        return 2
-
-    if not isinstance(dy, (int, float)):
-        return 2
-
-    codigo, posicao = getPosicao(nome)
-    if codigo != 0:
-        return 1
-
-    # CT-J19 - mover jogador corretamente
-    x, y = posicao
-    _jogadores[nome]["posicao"] = (x + dx, y + dy)
-    return 0
+    # CT-J16 - consultar inventário válido (retorna cópia profunda)
+    return 0, copy.deepcopy(jogador["inventario"])
 
 
 def receberDanoJogador(nome, dano):
@@ -240,7 +201,7 @@ def adicionarItemJogador(nome, item):
         return 1
 
     # CT-J32 - adicionar item válido
-    inventario.append(item)
+    _jogadores[nome]["inventario"].append(item)
     return 0
 
 
@@ -267,5 +228,5 @@ def usarItemJogador(nome, item):
     elif item.get("tipo") == "ataque":
         jogador["ataque"] += item["valor"]
 
-    inventario.remove(item)
+    jogador["inventario"].remove(item)
     return 0
