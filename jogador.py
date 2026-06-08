@@ -14,23 +14,28 @@ __all__ = [
     "usarItemJogador"
 ]
 
+# Dicionário interno que armazena todos os TADs de jogadores indexados pelo nome
+_jogadores = dict()
 
-def _jogadorValido(jogador):
-    return jogador is not None and isinstance(jogador, dict)
-
+def _jogadorExiste(nome):
+    """Valida se o nome corresponde a um jogador cadastrado e válido."""
+    return nome in _jogadores and isinstance(_jogadores[nome], dict)
 
 def criarJogador(nome):
     # CT-J03 - parâmetro inválido
     if nome is None:
-        return 2, None
+        return 2
 
     # CT-J02 - nome vazio ou apenas espaços
     if not isinstance(nome, str) or not nome.strip():
-        return 2, None
+        return 1
 
-    # CT-J01 - jogador criado com sucesso
+    nome_limpo = nome.strip()
+    
+    # Se o jogador já existir, podemos retornar código de erro ou sucesso dependendo da regra.
+    # Assumiremos criação com sucesso/reinicialização para manter o padrão.
     jogador = {
-        "nome": nome.strip(),
+        "nome": nome_limpo,
         "vida": 100,
         "vida_max": 100,
         "xp": 0,
@@ -39,15 +44,16 @@ def criarJogador(nome):
         "vivo": True,
         "inventario": []
     }
+    _jogadores[nome_limpo] = jogador
+    return 0
 
-    return 0, jogador
 
-
-def getVida(jogador):
-    # CT-J05 - consultar vida de jogador inválido
-    if jogador is None:
+def getVida(nome):
+    # CT-J05 - consultar vida de jogador inválido (não cadastrado)
+    if not _jogadorExiste(nome):
         return 2, None
 
+    jogador = _jogadores[nome]
     # CT-J06 - consultar vida sem campo vida
     if "vida" not in jogador:
         return 1, None
@@ -56,11 +62,12 @@ def getVida(jogador):
     return 0, jogador["vida"]
 
 
-def getXP(jogador):
+def getXP(nome):
     # CT-J08 - consultar XP com jogador inválido
-    if jogador is None:
+    if not _jogadorExiste(nome):
         return 2, None
 
+    jogador = _jogadores[nome]
     # CT-J09 - consultar XP sem campo xp
     if "xp" not in jogador:
         return 1, None
@@ -69,11 +76,12 @@ def getXP(jogador):
     return 0, jogador["xp"]
 
 
-def getAtaque(jogador):
+def getAtaque(nome):
     # CT-J11 - consultar ataque com jogador inválido
-    if jogador is None:
+    if not _jogadorExiste(nome):
         return 2, None
 
+    jogador = _jogadores[nome]
     # CT-J12 - consultar ataque sem campo ataque
     if "ataque" not in jogador:
         return 1, None
@@ -82,11 +90,12 @@ def getAtaque(jogador):
     return 0, jogador["ataque"]
 
 
-def getPosicao(jogador):
+def getPosicao(nome):
     # CT-J14 - consultar posição com jogador inválido
-    if jogador is None:
+    if not _jogadorExiste(nome):
         return 2, None
 
+    jogador = _jogadores[nome]
     # CT-J15 - consultar posição sem campo posição
     if "posicao" not in jogador:
         return 1, None
@@ -95,11 +104,12 @@ def getPosicao(jogador):
     return 0, jogador["posicao"]
 
 
-def getInventario(jogador):
+def getInventario(nome):
     # CT-J17 - consultar inventário com jogador inválido
-    if jogador is None:
+    if not _jogadorExiste(nome):
         return 2, None
 
+    jogador = _jogadores[nome]
     # CT-J18 - consultar inventário sem campo inventário
     if "inventario" not in jogador:
         return 1, None
@@ -108,9 +118,9 @@ def getInventario(jogador):
     return 0, jogador["inventario"]
 
 
-def moverJogador(jogador, dx, dy):
+def moverJogador(nome, dx, dy):
     # CT-J21 - jogador inválido
-    if not _jogadorValido(jogador):
+    if not _jogadorExiste(nome):
         return 2
 
     # CT-J20 - parâmetros inválidos
@@ -123,39 +133,31 @@ def moverJogador(jogador, dx, dy):
     if not isinstance(dy, (int, float)):
         return 2
 
-    codigo, posicao = getPosicao(jogador)
-
+    codigo, posicao = getPosicao(nome)
     if codigo != 0:
         return 1
 
     # CT-J19 - mover jogador corretamente
     x, y = posicao
-    jogador["posicao"] = (x + dx, y + dy)
-
+    _jogadores[nome]["posicao"] = (x + dx, y + dy)
     return 0
 
 
-def receberDanoJogador(jogador, dano):
+def receberDanoJogador(nome, dano):
     # CT-J24 - jogador inválido
-    if not _jogadorValido(jogador):
+    if not _jogadorExiste(nome):
         return 2
 
     # CT-J23 - dano inválido
-    if dano is None:
+    if dano is None or not isinstance(dano, (int, float)) or dano < 0:
         return 2
 
-    if not isinstance(dano, (int, float)):
-        return 2
-
-    if dano < 0:
-        return 2
-
-    codigo, vida = getVida(jogador)
-
+    codigo, vida = getVida(nome)
     if codigo != 0:
         return 1
 
     # CT-J22 - aplicar dano válido
+    jogador = _jogadores[nome]
     jogador["vida"] = max(0, vida - dano)
 
     if jogador["vida"] == 0:
@@ -164,25 +166,19 @@ def receberDanoJogador(jogador, dano):
     return 0
 
 
-def curarJogador(jogador, valor):
+def curarJogador(nome, valor):
     # parâmetro inválido
-    if not _jogadorValido(jogador):
+    if not _jogadorExiste(nome):
         return 2
 
-    if valor is None:
+    if valor is None or not isinstance(valor, (int, float)) or valor < 0:
         return 2
 
-    if not isinstance(valor, (int, float)):
-        return 2
-
-    if valor < 0:
-        return 2
-
-    codigo, vida = getVida(jogador)
-
+    codigo, vida = getVida(nome)
     if codigo != 0:
         return 1
 
+    jogador = _jogadores[nome]
     if "vida_max" not in jogador:
         return 1
 
@@ -191,66 +187,51 @@ def curarJogador(jogador, valor):
         return 1
 
     # CT-J25 - cura aplicada corretamente
-    jogador["vida"] = min(
-        vida + valor,
-        jogador["vida_max"]
-    )
-
+    jogador["vida"] = min(vida + valor, jogador["vida_max"])
     return 0
 
 
-def ganharXP(jogador, xp):
+def ganharXP(nome, xp):
     # jogador inválido
-    if not _jogadorValido(jogador):
+    if not _jogadorExiste(nome):
         return 2
 
     # CT-J29 - ganhar XP inválido
-    if xp is None:
+    if xp is None or not isinstance(xp, (int, float)) or xp < 0:
         return 2
 
-    if not isinstance(xp, (int, float)):
-        return 2
-
-    if xp < 0:
-        return 2
-
-    codigo, xpAtual = getXP(jogador)
-
+    codigo, xpAtual = getXP(nome)
     if codigo != 0:
         return 1
 
     # CT-J28 - ganhar XP válido
-    jogador["xp"] = xpAtual + xp
-
+    _jogadores[nome]["xp"] = xpAtual + xp
     return 0
 
 
-def atualizarAtaque(jogador):
+def atualizarAtaque(nome):
     # CT-J31 - jogador inválido
-    if not _jogadorValido(jogador):
+    if not _jogadorExiste(nome):
         return 2
 
-    codigo, xp = getXP(jogador)
-
+    codigo, xp = getXP(nome)
     if codigo != 0:
         return 1
 
     # CT-J30 - atualizar ataque corretamente
-    jogador["ataque"] = 10 + (xp // 100)
-
+    _jogadores[nome]["ataque"] = 10 + (xp // 100)
     return 0
 
 
-def adicionarItemJogador(jogador, item):
+def adicionarItemJogador(nome, item):
     # CT-J34 - parâmetro inválido
-    if not _jogadorValido(jogador):
+    if not _jogadorExiste(nome):
         return 2
 
     if item is None:
         return 2
 
-    codigo, inventario = getInventario(jogador)
-
+    codigo, inventario = getInventario(nome)
     if codigo != 0:
         return 1
 
@@ -260,20 +241,18 @@ def adicionarItemJogador(jogador, item):
 
     # CT-J32 - adicionar item válido
     inventario.append(item)
-
     return 0
 
 
-def usarItemJogador(jogador, item):
+def usarItemJogador(nome, item):
     # CT-J37 - parâmetro inválido
-    if not _jogadorValido(jogador):
+    if not _jogadorExiste(nome):
         return 2
 
     if item is None:
         return 2
 
-    codigo, inventario = getInventario(jogador)
-
+    codigo, inventario = getInventario(nome)
     if codigo != 0:
         return 1
 
@@ -282,12 +261,11 @@ def usarItemJogador(jogador, item):
         return 1
 
     # CT-J35 - usar item válido
-    if item["tipo"] == "cura":
+    jogador = _jogadores[nome]
+    if item.get("tipo") == "cura":
         jogador["vida"] += item["valor"]
-
-    elif item["tipo"] == "ataque":
+    elif item.get("tipo") == "ataque":
         jogador["ataque"] += item["valor"]
 
     inventario.remove(item)
-
     return 0
