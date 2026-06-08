@@ -1,5 +1,5 @@
-VIDA_MAX = 100
-ATAQUE_MAX = 50
+_VIDA_MAX = 100
+_ATAQUE_MAX = 50
 
 
 def criarInimigo(nome, vida, ataque):
@@ -20,7 +20,7 @@ def criarInimigo(nome, vida, ataque):
         return 1, None
 
     # CT-I06: atributos acima do limite máximo
-    if vida > VIDA_MAX or ataque > ATAQUE_MAX:
+    if vida > _VIDA_MAX or ataque > _ATAQUE_MAX:
         return 1, None
 
     # CT-I01: inimigo criado com sucesso

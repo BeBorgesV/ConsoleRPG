@@ -1,6 +1,6 @@
-
-
-TIPOS_VALIDOS = ["cura", "ataque"]
+def _tipoValido(tipo):
+    tiposValidos = ("cura", "ataque")
+    return tipo in tiposValidos
 
 
 def criarItem(nome, tipo, valor):
@@ -9,7 +9,7 @@ def criarItem(nome, tipo, valor):
         return 2, None
 
     # CT-T04: criar item com tipo inválido
-    if tipo is None or not isinstance(tipo, str) or tipo not in TIPOS_VALIDOS:
+    if tipo is None or not isinstance(tipo, str) or not _tipoValido(tipo):
         return 2, None
 
     # CT-T05: criar item com valor inválido
@@ -45,7 +45,7 @@ def aplicarItem(jogador, item):
         return 2
 
     # CT-T11: aplicar item com tipo desconhecido
-    if tipo not in TIPOS_VALIDOS:
+    if not _tipoValido(tipo):
         return 1
 
     # CT-T07: aplicar item de cura em jogador válido
