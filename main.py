@@ -366,10 +366,14 @@ def _resolverEventoAtual(jogador, mapa):
 
         if status_adicionar == 0:
             codigo_tipo, tipo_item = itens.getTipoItem(id_item)
+            _, valor_item = itens.getValorItem(id_item)
             if codigo_tipo == 0 and tipo_item == "chave":
-                print(f"  Chave   : obtida ({_contarChaves(jogador)}/2).")
+                chaves_atuais = _contarChaves(jogador)
+                print(f"  Chave   : obtida ({chaves_atuais}/2).")
+                if chaves_atuais >= 2:
+                    print("  Portao  : desbloqueado! Voce pode entrar no castelo.")
             else:
-                print(f"  Achado  : item adicionado ao inventario.")
+                print(f"  Achado  : [{tipo_item}: +{valor_item}] adicionado ao inventario.")
             limparEventoMapa(mapa, x, y)
             return 0
 
