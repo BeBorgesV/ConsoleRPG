@@ -1,10 +1,10 @@
 from inimigos import (
     criarInimigo,
+    getNomeInimigo,
     getVidaInimigo,
     getAtaqueInimigo,
     receberDanoInimigo,
     inimigoVivo,
-    verificaIdInimigoValido,
     exportarEstadoInimigos,
     restaurarEstadoInimigos
 )
@@ -25,6 +25,7 @@ def testar_criarInimigo():
     codigo, id_inimigo = criarInimigo("Goblin", 50, 10)
     assert codigo == 0
     assert isinstance(id_inimigo, int)
+    assert getNomeInimigo(id_inimigo) == (0, "Goblin")
     assert getVidaInimigo(id_inimigo) == (0, 50)
     assert getAtaqueInimigo(id_inimigo) == (0, 10)
     registrar_ok("CT-I01", "criar inimigo com dados válidos")
@@ -50,113 +51,113 @@ def testar_criarInimigo():
     registrar_ok("CT-I06", "criar inimigo com atributos acima do limite máximo")
 
 
-def testar_getVidaInimigo():
+def testar_getNomeInimigo():
     limpar_inimigos()
 
     # CT-I07
     codigo, id_inimigo = criarInimigo("Orc", 60, 20)
     assert codigo == 0
-    assert getVidaInimigo(id_inimigo) == (0, 60)
-    registrar_ok("CT-I07", "consultar vida de inimigo válido")
+    assert getNomeInimigo(id_inimigo) == (0, "Orc")
+    registrar_ok("CT-I07", "consultar nome de inimigo válido")
 
     # CT-I08
+    assert getNomeInimigo(None) == (2, None)
+    assert getNomeInimigo(-1) == (2, None)
+    assert getNomeInimigo(9999) == (2, None)
+    registrar_ok("CT-I08", "consultar nome de inimigo inválido")
+
+
+def testar_getVidaInimigo():
+    limpar_inimigos()
+
+    # CT-I09
+    codigo, id_inimigo = criarInimigo("Orc", 60, 20)
+    assert codigo == 0
+    assert getVidaInimigo(id_inimigo) == (0, 60)
+    registrar_ok("CT-I09", "consultar vida de inimigo válido")
+
+    # CT-I10
     assert getVidaInimigo(None) == (2, None)
     assert getVidaInimigo(-1) == (2, None)
     assert getVidaInimigo(9999) == (2, None)
-    registrar_ok("CT-I08", "consultar vida de inimigo inválido")
+    registrar_ok("CT-I10", "consultar vida de inimigo inválido")
 
 
 def testar_getAtaqueInimigo():
     limpar_inimigos()
 
-    # CT-I09
+    # CT-I11
     codigo, id_inimigo = criarInimigo("Esqueleto", 40, 15)
     assert codigo == 0
     assert getAtaqueInimigo(id_inimigo) == (0, 15)
-    registrar_ok("CT-I09", "consultar ataque de inimigo válido")
+    registrar_ok("CT-I11", "consultar ataque de inimigo válido")
 
-    # CT-I10
+    # CT-I12
     assert getAtaqueInimigo(None) == (2, None)
     assert getAtaqueInimigo(-1) == (2, None)
     assert getAtaqueInimigo(9999) == (2, None)
-    registrar_ok("CT-I10", "consultar ataque de inimigo inválido")
+    registrar_ok("CT-I12", "consultar ataque de inimigo inválido")
 
 
 def testar_receberDanoInimigo():
     limpar_inimigos()
 
-    # CT-I11
+    # CT-I13
     codigo, id_inimigo = criarInimigo("Lobo", 50, 10)
     assert codigo == 0
     assert receberDanoInimigo(id_inimigo, 20) == 0
     assert getVidaInimigo(id_inimigo) == (0, 30)
-    registrar_ok("CT-I11", "aplicar dano válido ao inimigo")
+    registrar_ok("CT-I13", "aplicar dano válido ao inimigo")
 
-    # CT-I12
+    # CT-I14
     codigo, id_inimigo = criarInimigo("Morcego", 50, 10)
     assert codigo == 0
     assert receberDanoInimigo(id_inimigo, 70) == 0
     assert getVidaInimigo(id_inimigo) == (0, 0)
-    registrar_ok("CT-I12", "aplicar dano maior que a vida do inimigo")
+    registrar_ok("CT-I14", "aplicar dano maior que a vida do inimigo")
 
-    # CT-I13
+    # CT-I15
     codigo, id_inimigo = criarInimigo("Aranha", 50, 10)
     assert codigo == 0
     assert receberDanoInimigo(id_inimigo, -10) == 2
     assert getVidaInimigo(id_inimigo) == (0, 50)
-    registrar_ok("CT-I13", "aplicar dano inválido")
+    registrar_ok("CT-I15", "aplicar dano inválido")
 
-    # CT-I14
+    # CT-I16
     assert receberDanoInimigo(None, 10) == 2
     assert receberDanoInimigo(-1, 10) == 2
     assert receberDanoInimigo(9999, 10) == 2
-    registrar_ok("CT-I14", "aplicar dano em inimigo inválido")
+    registrar_ok("CT-I16", "aplicar dano em inimigo inválido")
 
-    # CT-I15
+    # CT-I17
     codigo, id_inimigo = criarInimigo("Zumbi", 50, 10)
     assert codigo == 0
     assert receberDanoInimigo(id_inimigo, 50) == 0
     assert receberDanoInimigo(id_inimigo, 10) == 1
-    registrar_ok("CT-I15", "aplicar dano em inimigo já derrotado")
+    registrar_ok("CT-I17", "aplicar dano em inimigo já derrotado")
 
 
 def testar_inimigoVivo():
     limpar_inimigos()
 
-    # CT-I16
+    # CT-I18
     codigo, id_inimigo = criarInimigo("Slime", 30, 10)
     assert codigo == 0
     assert inimigoVivo(id_inimigo) == (0, True)
-    registrar_ok("CT-I16", "verificar inimigo vivo")
+    registrar_ok("CT-I18", "verificar inimigo vivo")
 
-    # CT-I17
+    # CT-I19
     codigo, id_inimigo = criarInimigo("Fantasma", 50, 10)
     assert codigo == 0
     assert receberDanoInimigo(id_inimigo, 50) == 0
     assert inimigoVivo(id_inimigo) == (0, False)
-    registrar_ok("CT-I17", "verificar inimigo derrotado")
+    registrar_ok("CT-I19", "verificar inimigo derrotado")
 
-    # CT-I18
+    # CT-I20
     assert inimigoVivo(None) == (2, None)
     assert inimigoVivo(-1) == (2, None)
     assert inimigoVivo(9999) == (2, None)
-    registrar_ok("CT-I18", "verificar inimigo inválido")
-
-
-def testar_verificaIdInimigoValido():
-    limpar_inimigos()
-
-    # CT-I19
-    codigo, id_inimigo = criarInimigo("Goblin", 50, 10)
-    assert codigo == 0
-    assert verificaIdInimigoValido(id_inimigo) is True
-    registrar_ok("CT-I19", "verificar id de inimigo válido")
-
-    # CT-I20
-    assert verificaIdInimigoValido(None) is False
-    assert verificaIdInimigoValido(-1) is False
-    assert verificaIdInimigoValido(9999) is False
-    registrar_ok("CT-I20", "verificar id de inimigo inválido")
+    registrar_ok("CT-I20", "verificar inimigo inválido")
 
 
 def testar_exportarEstadoInimigos():
@@ -191,11 +192,13 @@ def testar_restaurarEstadoInimigos():
     ]
 
     assert restaurarEstadoInimigos(estado) == 0
-    assert verificaIdInimigoValido(0) is True
-    assert verificaIdInimigoValido(1) is True
-    assert verificaIdInimigoValido(2) is False
+    assert getNomeInimigo(0) == (0, "Goblin")
     assert getVidaInimigo(0) == (0, 50)
+    assert getAtaqueInimigo(0) == (0, 10)
+    assert getNomeInimigo(1) == (0, "Orc")
     assert getVidaInimigo(1) == (0, 0)
+    assert getAtaqueInimigo(1) == (0, 20)
+    assert getVidaInimigo(2) == (2, None)
     registrar_ok("CT-I23", "restaurar estado válido dos inimigos")
 
     # CT-I24
@@ -207,11 +210,11 @@ def testar_restaurarEstadoInimigos():
 
 
 testar_criarInimigo()
+testar_getNomeInimigo()
 testar_getVidaInimigo()
 testar_getAtaqueInimigo()
 testar_receberDanoInimigo()
 testar_inimigoVivo()
-testar_verificaIdInimigoValido()
 testar_exportarEstadoInimigos()
 testar_restaurarEstadoInimigos()
 
