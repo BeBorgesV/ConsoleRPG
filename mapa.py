@@ -11,7 +11,9 @@ __all__ = [
     "moverJogadorMapa",
     "getPosicaoInicialMapa",
     "descreverPosicaoMapa",
-    "renderizarMapa"
+    "renderizarMapa",
+    "exportarEstadoMapa",
+    "restaurarEstadoMapa"
 ]
 
 EVENTO_VAZIO = "vazio"
@@ -803,3 +805,138 @@ def renderizarMapa(mapa, posicao_jogador=None):
     desenho.append(borda)
     desenho.append("@=voce I=inicio C=castelo #=parede !=item M=inimigo Ω=chefe")
     return 0, "\n".join(desenho)
+
+
+def exportarEstadoMapa(mapa):
+    """
+    Objetivo:
+        Exportar o estado atual do mapa para que outro módulo possa persistir os dados.
+
+    Requisitos funcionais:
+        - O mapa deve ser válido.
+        - A função deve retornar uma cópia do estado do mapa sem expor diretamente suas estruturas internas.
+        - O estado exportado deve conter todos os campos necessários para restauração completa.
+
+    Acoplamento:
+        Entrada:
+            mapa: dicionário TAD do mapa cujo estado será exportado.
+        Saída:
+            estado: dicionário contendo cópias de todos os campos do mapa.
+        Retornos:
+            (0, estado): estado exportado com sucesso.
+            (2, None): parâmetro inválido.
+
+    Condições de acoplamento:
+        Assertivas de entrada:
+            - mapa deve ser um TAD válido criado por criarMapa.
+        Assertivas de saída:
+            - se retornar (0, estado), estado contém cópias independentes de todos os campos do mapa.
+            - alterações no estado retornado não devem afetar o mapa original.
+            - se retornar (2, None), nenhum dado é exposto.
+
+    Hipóteses e restrições:
+        - O formato final do arquivo não é responsabilidade do módulo Mapa.
+        - O módulo Mapa apenas fornece o estado interno em uma estrutura simples.
+    """
+    if not _mapaValido(mapa):
+        return 2, None
+
+    estado = {
+        "nome": mapa["nome"],
+        "regioes": list(mapa["regioes"]),
+        "tamanho": mapa["tamanho"],
+        "posicao_inicial": mapa["posicao_inicial"],
+        "obstaculos": list(mapa["obstaculos"]),
+        "eventos": dict(mapa["eventos"]),
+        "itens": dict(mapa["itens"]),
+        "inimigos": dict(mapa["inimigos"]),
+        "chefes": list(mapa["chefes"]),
+        "descricoes": dict(mapa["descricoes"]),
+        "portao_castelo": mapa.get("portao_castelo")
+    }
+
+    return 0, estado
+
+
+def restaurarEstadoMapa(mapa, estado):
+    """
+    Objetivo:
+        Restaurar o estado do mapa a partir de um estado previamente exportado.
+
+    Requisitos funcionais:
+        - O mapa deve ser válido.
+        - O estado recebido deve ser um dicionário com todos os campos obrigatórios.
+        - Os campos de eventos, itens, inimigos e chefes devem ser dos tipos esperados.
+        - O estado do mapa deve ser substituído apenas se todo o estado for válido.
+
+    Acoplamento:
+        Entrada:
+            mapa: dicionário TAD do mapa que receberá o estado restaurado.
+            estado: dicionário contendo o estado previamente exportado.
+        Saída:
+            mapa atualizado com o estado restaurado.
+        Retornos:
+            0: estado restaurado com sucesso.
+            2: parâmetro inválido.
+
+    Condições de acoplamento:
+        Assertivas de entrada:
+            - mapa deve ser um TAD válido criado por criarMapa.
+            - estado deve ser um dicionário contendo os campos: nome, regioes, tamanho,
+              posicao_inicial, obstaculos, eventos, itens, inimigos, chefes, descricoes.
+            - eventos deve ser um dicionário.
+            - itens deve ser um dicionário.
+            - inimigos deve ser um dicionário.
+            - chefes deve ser uma lista.
+
+        Assertivas de saída:
+            - se retornar 0, todos os campos do mapa foram substituídos pelo estado restaurado.
+            - se retornar 2, o mapa não foi alterado por parâmetro inválido.
+
+    Hipóteses e restrições:
+        - A função recebe uma estrutura já lida pelo módulo responsável pela persistência.
+        - O módulo Mapa não conhece o formato do arquivo usado para salvar os dados.
+    """
+    if not _mapaValido(mapa):
+        return 2
+
+    if estado is None or not isinstance(estado, dict):
+        return 2
+
+    campos_obrigatorios = [
+        "nome", "regioes", "tamanho", "posicao_inicial",
+        "obstaculos", "eventos", "itens", "inimigos", "chefes", "descricoes"
+    ]
+
+    for campo in campos_obrigatorios:
+        if campo not in estado:
+            return 2
+
+    if not isinstance(estado["eventos"], dict):
+        return 2
+    if not isinstance(estado["itens"], dict):
+        return 2
+    if not isinstance(estado["inimigos"], dict):
+        return 2
+    if not isinstance(estado["chefes"], list):
+        return 2
+    if not isinstance(estado["regioes"], list):
+        return 2
+    if not isinstance(estado["obstaculos"], list):
+        return 2
+    if not isinstance(estado["descricoes"], dict):
+        return 2
+
+    mapa["nome"] = estado["nome"]
+    mapa["regioes"] = list(estado["regioes"])
+    mapa["tamanho"] = estado["tamanho"]
+    mapa["posicao_inicial"] = estado["posicao_inicial"]
+    mapa["obstaculos"] = list(estado["obstaculos"])
+    mapa["eventos"] = dict(estado["eventos"])
+    mapa["itens"] = dict(estado["itens"])
+    mapa["inimigos"] = dict(estado["inimigos"])
+    mapa["chefes"] = list(estado["chefes"])
+    mapa["descricoes"] = dict(estado["descricoes"])
+    mapa["portao_castelo"] = estado.get("portao_castelo")
+
+    return 0
