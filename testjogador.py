@@ -244,4 +244,67 @@ def testar_exportarJogador():
 
 testar_exportarJogador()
 
+def testar_restaurarJogador():
+    # Estrutura de dados válida simulando um arquivo de gravação correto
+    save_valido = {
+        "nome": "Arthur ",
+        "vida": 90,
+        "vida_max": 100,
+        "xp": 150,
+        "ataque": 11,
+        "vivo": True,
+        "inventario": [0, 4]
+    }
+
+    # CT-J41 (Sucesso): Restauração bem-sucedida de um novo jogador
+    assert restaurarJogador(save_valido) == 0
+    
+    # Valida se os dados foram de facto gravados no TAD através das funções públicas
+    assert getVida("Arthur") == (0, 90)
+    assert getXP("Arthur") == (0, 150)
+    assert getInventario("Arthur") == (0, [0, 4])
+
+    # Sobrescrita: Se enviarmos dados modificados para o mesmo nome, ele deve atualizar
+    save_modificado = save_valido.copy()
+    save_modificado["vida"] = 40
+    assert restaurarJogador(save_modificado) == 0
+    assert getVida("Arthur") == (0, 40)
+
+    # CT-J42 (Segurança - Dados corrompidos ou inconsistentes):
+    # Caso 1: Vida maior que a vida máxima
+    save_invalido = save_valido.copy()
+    save_invalido["vida"] = 300
+    assert restaurarJogador(save_invalido) == 1
+
+    # Caso 2: Vida zero mas marcado como vivo=True (Inconsistência de estado)
+    save_invalido = save_valido.copy()
+    save_invalido["vida"] = 0
+    save_invalido["vivo"] = True
+    assert restaurarJogador(save_invalido) == 1
+
+    # Caso 3: Inventário com tipo de dado inválido (string em vez de id numérico)
+    save_invalido = save_valido.copy()
+    save_invalido["inventario"] = [0, "id_corrompido"]
+    assert restaurarJogador(save_invalido) == 1
+
+    # Caso 4: Chave obrigatória ausente
+    save_incompleto = {
+        "nome": "Incompleto",
+        "vida": 100
+    }
+    assert restaurarJogador(save_incompleto) == 1
+
+    # CT-J43 (Parâmetros inválidos)
+    assert restaurarJogador(None) == 2
+    assert restaurarJogador([1, 2, 3]) == 2
+
+    # Verificação de Encapsulamento pós-restauração:
+    # Modificar o dicionário original de fora não pode alterar o TAD interno
+    save_modificado["vida"] = 5
+    assert getVida("Arthur") == (0, 40)  # Continua isolado e protegido
+
+    print("testar_restaurarJogador: OK")
+
+testar_restaurarJogador()
+
 print("\n>>> Todos os testes atualizados do módulo Jogador passaram com sucesso! <<<")

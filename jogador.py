@@ -12,7 +12,8 @@ __all__ = [
     "atualizarAtaque",
     "adicionarItemJogador",
     "usarItemJogador", 
-    "exportarJogador"
+    "exportarJogador",
+    "restaurarJogador",
 ]
 
 # Dicionário interno que armazena todos os TADs de jogadores indexados pelo nome
@@ -634,3 +635,94 @@ def exportarJogador(nome):
     # Retorna cópia profunda e isolada para garantir o encapsulamento
     jogador_copia = copy.deepcopy(_jogadores[nome.strip()])
     return 0, jogador_copia
+
+
+def restaurarJogador(dados_externos):
+    """
+    Objetivo:
+        Restaurar ou sobrescrever o estado interno de um jogador no sistema a partir de um 
+        dicionário externo, realizando validações rigorosas de segurança, tipos e limites 
+        de atributos antes da gravação.
+
+    Requisitos funcionais:
+        - O parâmetro dados_externos deve ser obrigatoriamente um dicionário válido.
+        - Deve conter todas as chaves obrigatórias do TAD: "nome", "vida", "vida_max", "xp", "ataque", "vivo", "inventario".
+        - Os tipos e limites lógicos de cada atributo devem ser validados (ex: vida não pode ser negativa ou maior que vida_max).
+        - O inventário não pode ter mais do que 5 itens e todos os IDs guardados devem ser inteiros válidos.
+
+    Acoplamento:
+        Entrada:
+            dados_externos: dicionário contendo a estrutura de atributos de um jogador a ser restaurado.
+        Saída:
+            sobrescrita ou criação do registro do jogador na estrutura interna _jogadores.
+        Retornos:
+            0: jogador restaurado com sucesso.
+            1: erro de validação (atributos fora dos limites, tipos incorretos ou chaves em falta).
+            2: parâmetro inválido (dados_externos nulo ou não é um dicionário).
+
+    Condições de acoplamento:
+        Assertivas de entrada:
+            - dados_externos deve ser um dict e não pode ser None.
+
+        Assertivas de saída:
+            - se retornar 0, uma cópia profunda (deep copy) de dados_externos foi guardada em _jogadores no índice correspondente ao nome limpo.
+            - se retornar 1 ou 2, nenhuma alteração é feita na estrutura interna de _jogadores.
+
+    Hipóteses e restrições:
+        - Esta função isola completamente o estado interno através de uma cópia profunda, blindando o TAD contra modificações externas subsequentes na referência enviada.
+    """
+    # CT-J43: Parâmetro inválido
+    if dados_externos is None or not isinstance(dados_externos, dict):
+        return 2
+
+    # Verificação de existência de todas as chaves obrigatórias
+    chaves_obrigatorias = ["nome", "vida", "vida_max", "xp", "ataque", "vivo", "inventario"]
+    for chave in chaves_obrigatorias:
+        if chave not in dados_externos:
+            return 1  # CT-J42: Estrutura incompleta
+
+    nome = dados_externos["nome"]
+    vida = dados_externos["vida"]
+    vida_max = dados_externos["vida_max"]
+    xp = dados_externos["xp"]
+    ataque = dados_externos["ataque"]
+    vivo = dados_externos["vivo"]
+    inventario = dados_externos["inventario"]
+
+    # Validações de Tipo e Domínio Lógico (Filtros de Segurança)
+    if not isinstance(nome, str) or not nome.strip():
+        return 1
+    
+    if not isinstance(vida_max, (int, float)) or vida_max <= 0:
+        return 1
+
+    if not isinstance(vida, (int, float)) or vida < 0 or vida > vida_max:
+        return 1
+
+    if not isinstance(xp, (int, float)) or xp < 0:
+        return 1
+
+    if not isinstance(ataque, (int, float)) or ataque < 0:
+        return 1
+
+    if not isinstance(vivo, bool):
+        return 1
+
+    # Consistência lógica de vitalidade (Evitar estados impossíveis como vida=0 e vivo=True)
+    if (vida == 0 and vivo is True) or (vida > 0 and vivo is False):
+        return 1
+
+    # Validação do inventário baseado em IDs numéricos inteiros
+    if not isinstance(inventario, list) or len(inventario) > 5:
+        return 1
+
+    for id_item in inventario:
+        if not isinstance(id_item, int) or id_item < 0:
+            return 1
+
+    # Se passar em todas as barreiras, limpa o nome e salva a cópia profunda
+    nome_limpo = nome.strip()
+    _jogadores[nome_limpo] = copy.deepcopy(dados_externos)
+    _jogadores[nome_limpo]["nome"] = nome_limpo  # Garante o alinhamento sem espaços
+    
+    return 0
