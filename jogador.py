@@ -420,6 +420,43 @@ def ganharXP(nome, xp):
     _jogadores[nome]["xp"] = xpAtual + xp
     return 0
 
+def atualizarAtaque(nome):
+    """
+    Objetivo:
+        Recalcular e atualizar o poder de ataque do jogador proporcionalmente com base em sua experiência.
+    Requisitos funcionais:
+        - O jogador associado ao nome deve existir.
+        - O ataque deve ser recalculado pela fórmula padrão: 10 somado à divisão inteira da experiência por 100.
+    Acoplamento:
+        Entrada:
+            nome: string contendo o nome do jogador.
+        Saída:
+            atributo de ataque do jogador atualizado internamente.
+        Retornos:
+            0: ataque recalculado e atualizado com sucesso.
+            1: erro obtido ao ler a experiência do jogador.
+            2: erro por jogador inválido ou não cadastrado.
+    Condições de acoplamento:
+        Assertivas de entrada:
+            - nome deve ser de um jogador cadastrado.
+        Assertivas de saída:
+            - se retornar 0, o novo valor de ataque passa a respeitar rigorosamente a equação funcional baseada no XP.
+            - se retornar 1 ou 2, o atributo de ataque permanece sem modificações.
+    Hipóteses e restrições:
+        - O cálculo utiliza estritamente o operador de divisão inteira (//) para determinar os bônus de patamar de poder.
+    """
+    # CT-J31 - jogador inválido
+    if not _jogadorExiste(nome):
+        return 2
+
+    codigo, xp = getXP(nome)
+    if codigo != 0:
+        return 1
+
+    # CT-J30 - atualizar ataque corretamente
+    _jogadores[nome]["ataque"] = 10 + (xp // 100)
+    return 0
+
 def adicionarItemJogador(nome, id_item):
     """
     Objetivo:
