@@ -1,3 +1,4 @@
+import itens  # Importa o módulo itens para gerar os IDs válidos nos testes
 from jogador import *
 
 def testar_criarJogador():
@@ -65,7 +66,7 @@ testar_getAtaque()
 def testar_getInventario():
     criarJogador("Ana")
 
-    # CT-J16
+    # CT-J16 - Inventário inicialmente vazio
     assert getInventario("Ana") == (0, [])
 
     # CT-J17 / CT-J18
@@ -150,67 +151,71 @@ testar_atualizarAtaque()
 def testar_adicionarItemJogador():
     criarJogador("Ana")
 
-    item = {
-        "nome": "Poção",
-        "tipo": "cura",
-        "valor": 20
-    }
+    # Criamos um item real usando o módulo itens para obter um id válido
+    codigo_item, id_pocao = itens.criarItem("Poção", "cura", 20)
+    assert codigo_item == 0
 
-    # CT-J32
-    assert adicionarItemJogador("Ana", item) == 0
+    # CT-J32 - Adiciona passando o ID inteiro recebido
+    assert adicionarItemJogador("Ana", id_pocao) == 0
 
     codigo, inventario = getInventario("Ana")
-    assert item in inventario
+    # Agora o inventário deve conter o ID (inteiro), não o dicionário
+    assert id_pocao in inventario
+    assert isinstance(inventario[0], int)
 
-    # Preenche inventário até o limite (já tem 1 item, adiciona mais 4)
+    # Preenche inventário até o limite (já tem 1 item, adiciona mais 4 IDs)
     for i in range(4):
-        adicionarItemJogador("Ana", {"nome": f"item{i}"})
+        _, id_extra = itens.criarItem(f"item{i}", "ataque", 5)
+        adicionarItemJogador("Ana", id_extra)
 
-    # CT-J33 - Limite excedido (5 itens)
-    assert adicionarItemJogador("Ana", {"nome": "extra"}) == 1
+    # CT-J33 - Limite excedido (5 itens já guardados)
+    _, id_excedente = itens.criarItem("Excedente", "chave", 1)
+    assert adicionarItemJogador("Ana", id_excedente) == 1
 
-    # CT-J34
-    assert adicionarItemJogador("Inexistente", item) == 2
+    # CT-J34 - Parâmetros inválidos
+    assert adicionarItemJogador("Inexistente", id_pocao) == 2
+    assert adicionarItemJogador("Ana", None) == 2
+    assert adicionarItemJogador("Ana", -5) == 2  # ID negativo inválido
 
     print("testar_adicionarItemJogador: OK")
 
 testar_adicionarItemJogador()
 
-
 def testar_usarItemJogador():
     criarJogador("Ana")
-    receberDanoJogador("Ana", 50)
+    receberDanoJogador("Ana", 50)  # Vida cai de 100 para 50
 
-    item = {
-        "nome": "Poção",
-        "tipo": "cura",
-        "valor": 20
-    }
+    # Cria um item de cura no módulo itens e adiciona o id ao jogador
+    # Nota: Assumindo que itens.criarItem retorna (codigo, id_item)
+    _, id_pocao = itens.criarItem("Poção Grande", "cura", 30)
+    adicionarItemJogador("Ana", id_pocao)
 
-    adicionarItemJogador("Ana", item)
+    # CT-J35 - Usar o item passando o ID de forma encapsulada
+    assert usarItemJogador("Ana", id_pocao) == 0
+    assert getVida("Ana") == (0, 80)  # 50 + 30 = 80 pontos de vida
 
-    # CT-J35
-    assert usarItemJogador("Ana", item) == 0
-    assert getVida("Ana") == (0, 70)
+    # CT-J36 - Tentar usar o mesmo item novamente (ele já foi removido)
+    assert usarItemJogador("Ana", id_pocao) == 1
 
-    # CT-J36
-    assert usarItemJogador("Ana", item) == 1
-
-    # CT-J37
-    assert usarItemJogador("Inexistente", item) == 2
+    # CT-J37 - Parâmetros inválidos
+    assert usarItemJogador("Inexistente", id_pocao) == 2
+    assert usarItemJogador("Ana", None) == 2
 
     print("testar_usarItemJogador: OK")
 
 testar_usarItemJogador()
 
+testar_usarItemJogador()
+
+
 def testar_encapsulamento():
-    # Teste extra para garantir que modificações externas não alteram o TAD original
     res = criarJogador("Carlos")
-    res["vida"] = 999  # Tenta trapacear alterando o retorno direto
+    res["vida"] = 999  # Tenta modificar a cópia de retorno externa
     
-    assert getVida("Carlos") == (0, 100) # O TAD original deve continuar intacto (100)
+    # O TAD real do jogador deve continuar protegido com 100 de vida
+    assert getVida("Carlos") == (0, 100)
     print("testar_encapsulamento: OK")
 
 testar_encapsulamento()
 
-print("Todos os testes do módulo Jogador adaptado passaram.")
+print("\n>>> Todos os testes atualizados do módulo Jogador passaram com sucesso! <<<")

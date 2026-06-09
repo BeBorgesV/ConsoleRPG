@@ -420,16 +420,13 @@ def ganharXP(nome, xp):
     _jogadores[nome]["xp"] = xpAtual + xp
     return 0
 
-
 def atualizarAtaque(nome):
     """
     Objetivo:
         Recalcular e atualizar o poder de ataque do jogador proporcionalmente com base em sua experiência.
-
     Requisitos funcionais:
         - O jogador associado ao nome deve existir.
         - O ataque deve ser recalculado pela fórmula padrão: 10 somado à divisão inteira da experiência por 100.
-
     Acoplamento:
         Entrada:
             nome: string contendo o nome do jogador.
@@ -439,15 +436,12 @@ def atualizarAtaque(nome):
             0: ataque recalculado e atualizado com sucesso.
             1: erro obtido ao ler a experiência do jogador.
             2: erro por jogador inválido ou não cadastrado.
-
     Condições de acoplamento:
         Assertivas de entrada:
             - nome deve ser de um jogador cadastrado.
-
         Assertivas de saída:
             - se retornar 0, o novo valor de ataque passa a respeitar rigorosamente a equação funcional baseada no XP.
             - se retornar 1 ou 2, o atributo de ataque permanece sem modificações.
-
     Hipóteses e restrições:
         - O cálculo utiliza estritamente o operador de divisão inteira (//) para determinar os bônus de patamar de poder.
     """
@@ -463,45 +457,45 @@ def atualizarAtaque(nome):
     _jogadores[nome]["ataque"] = 10 + (xp // 100)
     return 0
 
-
-def adicionarItemJogador(nome, item):
+def adicionarItemJogador(nome, id_item):
     """
     Objetivo:
-        Adicionar um objeto de item estruturado ao fim da lista de inventário de um jogador.
+        Adicionar o identificador de um item ao fim da lista de inventário de um jogador.
 
     Requisitos funcionais:
         - O jogador associado ao nome deve existir.
-        - O item a ser adicionado não pode ser nulo.
+        - O identificador do item (id_item) deve ser um número inteiro válido.
         - O inventário do jogador não pode ultrapassar o limite máximo de armazenamento fixado em 5 itens.
 
     Acoplamento:
         Entrada:
             nome: string contendo o nome do jogador.
-            item: dicionário contendo os dados e propriedades estruturadas do item.
+            id_item: inteiro correspondente ao identificador do item.
         Saída:
-            lista interna do inventário do jogador atualizada por acréscimo.
+            lista interna do inventário do jogador atualizada com o novo id.
         Retornos:
-            0: item adicionado com sucesso ao inventário.
-            1: erro decorrente de falha de leitura ou capacidade de inventário esgotada (limite >= 5).
-            2: erro por jogador inexistente ou item inválido/nulo.
+            0: identificador do item adicionado com sucesso ao inventário.
+            1: erro decorrente de capacidade de inventário esgotada (limite >= 5).
+            2: erro por jogador inexistente ou id_item inválido.
 
     Condições de acoplamento:
         Assertivas de entrada:
             - nome deve ser de um jogador cadastrado.
-            - item deve ser um dicionário estruturado válido e não ser None.
+            - id_item deve ser um número inteiro maior ou igual a zero.
+            - id_item não deve ser None.
 
         Assertivas de saída:
-            - se retornar 0, o item foi anexado ao final da lista de inventário real do jogador.
-            - se retornar 1 ou 2, o inventário permanece com o mesmo tamanho e elementos de antes.
+            - se retornar 0, o id_item foi anexado ao final da lista de inventário real do jogador.
+            - se retornar 1 ou 2, o inventário permanece inalterado.
 
     Hipóteses e restrições:
-        - O módulo jogador não valida os campos internos do item recebido (como nome ou valor do item), confiando na validação prévia do módulo Item.
+        - O módulo jogador armazena estritamente o ID numérico e delega a validação da existência física do item para quem chama ou para o módulo Item.
     """
     # CT-J34 - parâmetro inválido
     if not _jogadorExiste(nome):
         return 2
 
-    if item is None:
+    if id_item is None or not isinstance(id_item, int) or id_item < 0:
         return 2
 
     codigo, inventario = getInventario(nome)
@@ -512,70 +506,78 @@ def adicionarItemJogador(nome, item):
     if len(inventario) >= 5:
         return 1
 
-    # CT-J32 - adicionar item válido
-    _jogadores[nome]["inventario"].append(item)
+    # CT-J32 - adicionar ID válido
+    _jogadores[nome]["inventario"].append(id_item)
     return 0
 
 
-def usarItemJogador(nome, item):
+def usarItemJogador(nome, id_item):
     """
     Objetivo:
-        Consumir um item contido no inventário do jogador, aplicando seus respectivos efeitos e removendo-o em seguida.
+        Consumir um item do inventário do jogador pelo seu identificador, consultando suas propriedades de forma encapsulada através do módulo de itens e aplicando os bônus correspondentes.
 
     Requisitos funcionais:
         - O jogador associado ao nome deve existir.
-        - O item a ser utilizado não pode ser nulo.
-        - O item especificado deve obrigatoriamente constar na lista atual de itens do jogador.
-        - Se o tipo do item for "cura", incrementa diretamente a vida do jogador.
-        - Se o tipo do item for "ataque", incrementa diretamente o ataque do jogador.
-        - Ao final do uso com sucesso, o item deve ser expelido da lista de inventário.
+        - O id_item não pode ser nulo e deve ser um inteiro válido.
+        - O id_item especificado deve obrigatoriamente constar na lista de inventário do jogador.
+        - O tipo e o valor do item devem ser obtidos estritamente pelas funções exportadas do módulo 'itens'.
+        - Ao final do uso com sucesso, o id_item deve ser removido do inventário.
 
     Acoplamento:
         Entrada:
             nome: string contendo o nome do jogador.
-            item: dicionário contendo as propriedades do item a ser consumido.
+            id_item: número inteiro identificador do item a ser consumido.
         Saída:
-            atributos afetados do jogador (vida ou ataque) modificados e item removido do inventário.
+            item removido do inventário e atributos do jogador (vida ou ataque) modificados via interface.
         Retornos:
-            0: item consumido e aplicado com sucesso.
-            1: erro decorrente de item inexistente dentro do inventário ou falha estrutural.
-            2: erro por jogador inexistente ou objeto item nulo.
+            0: item consumido com sucesso.
+            1: erro decorrente de ID inexistente no inventário ou falha ao obter dados do item.
+            2: erro por jogador inexistente ou id_item inválido.
 
     Condições de acoplamento:
         Assertivas de entrada:
             - nome deve ser de um jogador cadastrado.
-            - item deve constar na lista extraída do inventário do jogador.
-            - item não deve ser None.
+            - id_item deve constar na lista extraída do inventário do jogador.
+            - id_item deve ser um inteiro válido.
 
         Assertivas de saída:
-            - se retornar 0, o item foi completamente removido da lista interna do inventário.
-            - se retornar 0, as propriedades do jogador mudaram de forma correspondente ao tipo e valor do item.
-            - se retornar 1 ou 2, nenhuma alteração de atributos ou remoção de itens é executada.
+            - se retornar 0, o id_item foi completamente removido da lista interna do inventário.
+            - se retornar 0 e o tipo do item for "cura", a função curarJogador foi acionada com o valor do item.
+            - se retornar 0 e o tipo do item for "ataque", o atributo 'ataque' do jogador foi incrementado com o valor do item.
+            - se retornar 1 ou 2, nenhuma alteração de atributos ou remoção é executada.
 
     Hipóteses e restrições:
-        - O item é comparado por igualdade estrutural completa de seus campos dentro da lista.
+        - O encapsulamento é mantido utilizando as funções interfaceadoras do módulo 'itens', impedindo o jogador de acessar diretamente a estrutura interna do item.
     """
     # CT-J37 - parâmetro inválido
     if not _jogadorExiste(nome):
         return 2
 
-    if item is None:
+    if id_item is None or not isinstance(id_item, int):
         return 2
 
-    codigo, inventario = getInventario(nome)
-    if codigo != 0:
-        return 1
-
-    # CT-J36 - usar item inexistente
-    if item not in inventario:
-        return 1
-
-    # CT-J35 - usar item válido
     jogador = _jogadores[nome]
-    if item.get("tipo") == "cura":
-        jogador["vida"] += item["valor"]
-    elif item.get("tipo") == "ataque":
-        jogador["ataque"] += item["valor"]
+    
+    # CT-J36 - usar item inexistente no inventário
+    if id_item not in jogador["inventario"]:
+        return 1
 
-    jogador["inventario"].remove(item)
+    # INTERAÇÃO ENCAPSULADA COM O MÓDULO ITENS
+    import itens
+    
+    # Obtém o tipo e o valor do item sem acessar dicionários diretamente
+    codigo_tipo, tipo_item = itens.getTipoItem(id_item)
+    codigo_valor, valor_item = itens.getValorItem(id_item)
+    
+    if codigo_tipo != 0 or codigo_valor != 0:
+        return 1  # Falha ao ler propriedades do item do módulo externo
+
+    # Aplica o efeito utilizando as regras do jogador
+    if tipo_item == "cura":
+        curarJogador(nome, valor_item)
+    elif tipo_item == "ataque":
+        jogador["ataque"] += valor_item
+
+    # Remove o ID do inventário do jogador
+    jogador["inventario"].remove(id_item)
     return 0
