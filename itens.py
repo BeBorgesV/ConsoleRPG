@@ -62,10 +62,8 @@ def criarItem(nome, tipo, valor):
     }
 
     _itens.append(item)
-    return 0, len(_itens) - 1
-
-
-
+    id_item = len(_itens) - 1
+    return 0, id_item
 
 # Funções de consulta de tipo e valor de item
 def getTipoItem(id_item):
@@ -103,7 +101,6 @@ def getTipoItem(id_item):
 
     return 0, _itens[id_item]["tipo"]
 
-
 def getValorItem(id_item):
     """
     Objetivo:
@@ -138,7 +135,6 @@ def getValorItem(id_item):
         return 2, None
 
     return 0, _itens[id_item]["valor"]
-
 
 def verificaIdItemValido(id_item):
     """
@@ -179,51 +175,9 @@ def verificaIdItemValido(id_item):
 
     return True
 
-
-def itemEhChave(item):
-    """
-    Objetivo:
-        Verificar se uma estrutura de item representa uma chave.
-
-    Acoplamento:
-        Entrada:
-            item: dicionário de item retornado por funções de acesso.
-        Saída:
-            True se o item for uma chave, False caso contrário.
-    """
-    return isinstance(item, dict) and item.get("tipo") == "chave"
-
 def _tipoValido(tipo):
-    """
-    Objetivo:
-        Verificar se o tipo informado pertence aos tipos de item aceitos pelo jogo.
-
-    Requisitos funcionais:
-        - O tipo do item deve ser validado antes da criação ou aplicação de um item.
-        - Os tipos aceitos pelo módulo são: "cura", "ataque" e "chave".
-
-    Acoplamento:
-        Entrada:
-            tipo: valor que representa o tipo do item.
-        Saída:
-            valor booleano indicando se o tipo é válido.
-        Retornos:
-            True: tipo válido.
-            False: tipo inválido.
-
-    Condições de acoplamento:
-        Assertivas de entrada:
-            - tipo pode ser qualquer valor recebido pelo módulo.
-
-        Assertivas de saída:
-            - se retornar True, o tipo pertence ao conjunto de tipos aceitos pelo módulo.
-            - se retornar False, o tipo não pertence ao conjunto de tipos aceitos pelo módulo.
-            - a lista de tipos válidos permanece interna à função.
-    """
-
     tiposValidos = ("cura", "ataque", "chave")
     return tipo in tiposValidos
-
 
 def exportarEstadoItens():
     """
@@ -264,7 +218,6 @@ def exportarEstadoItens():
         estado.append(item.copy())
 
     return estado
-
 
 def restaurarEstadoItens(estado):
     """

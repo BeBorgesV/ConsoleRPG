@@ -74,7 +74,8 @@ def criarInimigo(nome, vida, ataque):
     }
 
     _inimigos.append(inimigo)
-    return 0, len(_inimigos) - 1
+    id_inimigo = len(_inimigos) - 1
+    return 0, id_inimigo
 
 
 def getVidaInimigo(id_inimigo):
@@ -155,6 +156,44 @@ def getAtaqueInimigo(id_inimigo):
 
     # CT-I9: ataque retornado com sucesso
     return 0, inimigo["ataque"]
+
+
+def getNomeInimigo(id_inimigo):
+    """
+    Objetivo:
+        Consultar o nome de um inimigo.
+
+    Requisitos funcionais:
+        - O inimigo deve existir no módulo.
+        - A função deve retornar o nome associado ao inimigo informado.
+
+    Acoplamento:
+        Entrada:
+            id_inimigo: identificador do inimigo.
+        Saída:
+            nome: nome do inimigo.
+        Retornos:
+            (0, nome): consulta realizada com sucesso.
+            (2, None): identificador inválido.
+
+    Condições de acoplamento:
+        Assertivas de entrada:
+            - id_inimigo deve referenciar um inimigo existente.
+
+        Assertivas de saída:
+            - se retornar (0, nome), nome corresponde ao valor armazenado no módulo.
+            - se retornar (2, None), nenhuma informação é retornada.
+
+    Hipóteses e restrições:
+        - A estrutura interna do inimigo não é exposta ao módulo cliente.
+    """
+
+    if not verificaIdInimigoValido(id_inimigo):
+        return 2, None
+
+    inimigo = _inimigos[id_inimigo]
+
+    return 0, inimigo["nome"]
 
 
 def receberDanoInimigo(id_inimigo, dano):
