@@ -2,7 +2,7 @@ import json
 import os
 
 import jogador as modulo_jogador
-from mapa import criarMapa
+from mapa import criarMapa, exportarEstadoMapa
 
 __all__ = [
     "salvarJogo",
@@ -102,6 +102,9 @@ def salvarJogo(jogador_atual, mapa):
     def converter_chaves(dicionario):
         return {str(k): v for k, v in dicionario.items()}
 
+    status_mapa, estado_mapa = exportarEstadoMapa(mapa)
+    eventos_mapa = estado_mapa["eventos"] if status_mapa == 0 else {}
+
     save = {
         "jogador": {
             "nome": nome,
@@ -112,7 +115,7 @@ def salvarJogo(jogador_atual, mapa):
             "posicao": list(posicao),
             "inventario": inventario
         },
-        "mapa_eventos": converter_chaves(mapa.get("eventos", {}))
+        "mapa_eventos": converter_chaves(eventos_mapa)
     }
 
     try:
