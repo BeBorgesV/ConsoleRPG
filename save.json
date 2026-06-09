@@ -1,0 +1,36 @@
+{
+  "jogador": {
+    "nome": "Ana",
+    "vida": 78,
+    "vida_max": 100,
+    "ataque": 10,
+    "xp": 50,
+    "posicao": [
+      5,
+      11
+    ],
+    "inventario": [
+      {
+        "nome": "Pocao simples",
+        "tipo": "cura",
+        "valor": 25
+      },
+      {
+        "nome": "Chave da clareira",
+        "tipo": "chave",
+        "valor": 1
+      }
+    ]
+  },
+  "mapa_eventos": {
+    "(2, 12)": "vazio",
+    "(5, 13)": "item",
+    "(1, 10)": "vazio",
+    "(8, 5)": "item",
+    "(11, 6)": "item",
+    "(5, 11)": "vazio",
+    "(9, 9)": "inimigo",
+    "(12, 7)": "inimigo",
+    "(13, 2)": "chefe"
+  }
+}
