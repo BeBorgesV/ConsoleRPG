@@ -65,90 +65,79 @@ def criarItem(nome, tipo, valor):
     return 0, len(_itens) - 1
 
 
-def aplicarItem(jogador, id_item):
+
+
+# Funções de consulta de tipo e valor de item
+def getTipoItem(id_item):
     """
     Objetivo:
-        Aplicar o efeito de um item existente em um jogador.
+        Consultar o tipo de um item.
 
     Requisitos funcionais:
-        - O jogador deve ser válido.
-        - O item deve existir na lista interna de itens.
-        - Item do tipo "cura" deve aumentar a vida do jogador.
-        - Item do tipo "ataque" deve aumentar o ataque do jogador.
-        - Item de cura não deve ser aplicado se o jogador já estiver com vida cheia.
-        - A vida do jogador não pode ultrapassar o limite máximo definido pela regra do jogo.
+        - O item deve existir no módulo.
+        - A função deve retornar o tipo associado ao item informado.
 
     Acoplamento:
         Entrada:
-            jogador: estrutura do jogador que receberá o efeito do item.
-            id_item: identificador do item a ser aplicado.
+            id_item: identificador do item.
         Saída:
-            jogador atualizado com o efeito do item aplicado.
+            tipo: tipo do item.
         Retornos:
-            0: item aplicado com sucesso.
-            1: erro ao aplicar item por regra do jogo.
-            2: parâmetro inválido.
+            (0, tipo): consulta realizada com sucesso.
+            (2, None): identificador inválido.
 
     Condições de acoplamento:
         Assertivas de entrada:
-            - jogador deve ser um dicionário válido.
-            - id_item deve ser um inteiro válido.
-            - id_item deve referenciar um item existente na lista interna do módulo.
-            - para item de cura, jogador deve possuir o campo "vida".
-            - para item de ataque, jogador deve possuir o campo "ataque".
+            - id_item deve referenciar um item existente.
 
         Assertivas de saída:
-            - se retornar 0 e o item for de cura, a vida do jogador foi atualizada sem ultrapassar 100.
-            - se retornar 0 e o item for de ataque, o ataque do jogador foi atualizado com o valor do item.
-            - se retornar 1, o item não foi aplicado por regra do jogo.
-            - se retornar 2, o item não foi aplicado por parâmetro inválido.
-            - a lista interna de itens não é acessada diretamente por outros módulos.
+            - se retornar (0, tipo), tipo corresponde ao valor armazenado no módulo.
+            - se retornar (2, None), nenhuma informação é retornada.
 
     Hipóteses e restrições:
-        - O limite máximo de vida considerado é 100.
-        - O item deve ter sido criado previamente pela função criarItem.
+        - A estrutura interna do item não é exposta ao módulo cliente.
     """
-    # CT-T09: aplicar item com jogador inválido
-    if jogador is None or not isinstance(jogador, dict):
-        return 2
 
-    # CT-T10: aplicar item inválido
     if not verificaIdItemValido(id_item):
-        return 2
+        return 2, None
 
-    item = _itens[id_item]
-    tipo = item["tipo"]
-    valor = item["valor"]
+    return 0, _itens[id_item]["tipo"]
 
-    # CT-T11: aplicar item com tipo desconhecido
-    if not _tipoValido(tipo):
-        return 1
 
-    # CT-T07: aplicar item de cura em jogador válido
-    if tipo == "cura":
-        if "vida" not in jogador:
-            return 2
+def getValorItem(id_item):
+    """
+    Objetivo:
+        Consultar o valor de um item.
 
-        # CT-T12: aplicar item de cura em jogador com vida cheia
-        if jogador["vida"] >= 100:
-            return 1
+    Requisitos funcionais:
+        - O item deve existir no módulo.
+        - A função deve retornar o valor associado ao item informado.
 
-        jogador["vida"] += valor
+    Acoplamento:
+        Entrada:
+            id_item: identificador do item.
+        Saída:
+            valor: valor do item.
+        Retornos:
+            (0, valor): consulta realizada com sucesso.
+            (2, None): identificador inválido.
 
-        if jogador["vida"] > 100:
-            jogador["vida"] = 100
+    Condições de acoplamento:
+        Assertivas de entrada:
+            - id_item deve referenciar um item existente.
 
-        return 0
+        Assertivas de saída:
+            - se retornar (0, valor), valor corresponde ao valor armazenado no módulo.
+            - se retornar (2, None), nenhuma informação é retornada.
 
-    # CT-T08: aplicar item de ataque em jogador válido
-    if tipo == "ataque":
-        if "ataque" not in jogador:
-            return 2
+    Hipóteses e restrições:
+        - A estrutura interna do item não é exposta ao módulo cliente.
+    """
 
-        jogador["ataque"] += valor
-        return 0
+    if not verificaIdItemValido(id_item):
+        return 2, None
 
-    return 1
+    return 0, _itens[id_item]["valor"]
 
 
 def verificaIdItemValido(id_item):

@@ -1,7 +1,7 @@
 from itens import (
     criarItem,
-    aplicarItem,
-    itemEhChave,
+    getTipoItem,
+    getValorItem,
     verificaIdItemValido,
     exportarEstadoItens,
     restaurarEstadoItens
@@ -24,6 +24,8 @@ def testar_criarItem():
     assert codigo == 0
     assert isinstance(id_item, int)
     assert verificaIdItemValido(id_item) is True
+    assert getTipoItem(id_item) == (0, "cura")
+    assert getValorItem(id_item) == (0, 20)
     registrar_ok("CT-T01", "criar item de cura com dados válidos")
 
     # CT-T02
@@ -31,14 +33,9 @@ def testar_criarItem():
     assert codigo == 0
     assert isinstance(id_item, int)
     assert verificaIdItemValido(id_item) is True
+    assert getTipoItem(id_item) == (0, "ataque")
+    assert getValorItem(id_item) == (0, 10)
     registrar_ok("CT-T02", "criar item de ataque com dados válidos")
-
-    codigo, id_item = criarItem("Chave", "chave", 1)
-    assert codigo == 0
-    assert isinstance(id_item, int)
-    assert verificaIdItemValido(id_item) is True
-    assert itemEhChave(exportarEstadoItens()[id_item]) is True
-    registrar_ok("CT-T02B", "criar item chave com dados válidos")
 
     # CT-T03
     assert criarItem("", "cura", 20) == (2, None)
@@ -53,74 +50,58 @@ def testar_criarItem():
     registrar_ok("CT-T05", "criar item com valor inválido")
 
 
-def testar_aplicarItem():
+def testar_getTipoItem():
     limpar_itens()
 
-    # CT-T07
-    jogador = {"nome": "Ana", "vida": 50, "ataque": 10}
+    # CT-T06
     codigo, id_item = criarItem("Poção", "cura", 20)
     assert codigo == 0
-    assert aplicarItem(jogador, id_item) == 0
-    assert jogador["vida"] == 70
-    registrar_ok("CT-T07", "aplicar item de cura em jogador válido")
+    assert getTipoItem(id_item) == (0, "cura")
+    registrar_ok("CT-T06", "consultar tipo de item válido")
+
+    # CT-T07
+    assert getTipoItem(None) == (2, None)
+    assert getTipoItem(-1) == (2, None)
+    assert getTipoItem(9999) == (2, None)
+    registrar_ok("CT-T07", "consultar tipo de item inválido")
+
+
+def testar_getValorItem():
+    limpar_itens()
 
     # CT-T08
-    jogador = {"nome": "Ana", "vida": 50, "ataque": 10}
-    codigo, id_item = criarItem("Espada", "ataque", 5)
+    codigo, id_item = criarItem("Espada", "ataque", 10)
     assert codigo == 0
-    assert aplicarItem(jogador, id_item) == 0
-    assert jogador["ataque"] == 15
-    registrar_ok("CT-T08", "aplicar item de ataque em jogador válido")
+    assert getValorItem(id_item) == (0, 10)
+    registrar_ok("CT-T08", "consultar valor de item válido")
 
     # CT-T09
-    codigo, id_item = criarItem("Poção", "cura", 20)
-    assert codigo == 0
-    assert aplicarItem(None, id_item) == 2
-    registrar_ok("CT-T09", "aplicar item com jogador inválido")
-
-    # CT-T10
-    jogador = {"nome": "Ana", "vida": 50, "ataque": 10}
-    assert aplicarItem(jogador, None) == 2
-    assert aplicarItem(jogador, -1) == 2
-    assert aplicarItem(jogador, 9999) == 2
-    registrar_ok("CT-T10", "aplicar item inválido")
-
-    # CT-T11
-    estado_invalido = [
-        {"nome": "Item estranho", "tipo": "velocidade", "valor": 10}
-    ]
-    assert restaurarEstadoItens(estado_invalido) == 2
-    registrar_ok("CT-T11", "impedir restauração de item com tipo desconhecido")
-
-    # CT-T12
-    jogador = {"nome": "Ana", "vida": 100, "ataque": 10}
-    codigo, id_item = criarItem("Poção", "cura", 20)
-    assert codigo == 0
-    assert aplicarItem(jogador, id_item) == 1
-    assert jogador["vida"] == 100
-    registrar_ok("CT-T12", "aplicar item de cura em jogador com vida cheia")
+    assert getValorItem(None) == (2, None)
+    assert getValorItem(-1) == (2, None)
+    assert getValorItem(9999) == (2, None)
+    registrar_ok("CT-T09", "consultar valor de item inválido")
 
 
 def testar_verificaIdItemValido():
     limpar_itens()
 
-    # CT-T13
+    # CT-T10
     codigo, id_item = criarItem("Poção", "cura", 20)
     assert codigo == 0
     assert verificaIdItemValido(id_item) is True
-    registrar_ok("CT-T13", "verificar id de item válido")
+    registrar_ok("CT-T10", "verificar id de item válido")
 
-    # CT-T14
+    # CT-T11
     assert verificaIdItemValido(None) is False
     assert verificaIdItemValido(-1) is False
     assert verificaIdItemValido(9999) is False
-    registrar_ok("CT-T14", "verificar id de item inválido")
+    registrar_ok("CT-T11", "verificar id de item inválido")
 
 
 def testar_exportarEstadoItens():
     limpar_itens()
 
-    # CT-T15
+    # CT-T12
     criarItem("Poção", "cura", 20)
     criarItem("Espada", "ataque", 10)
 
@@ -130,19 +111,19 @@ def testar_exportarEstadoItens():
     assert len(estado) == 2
     assert estado[0] == {"nome": "Poção", "tipo": "cura", "valor": 20}
     assert estado[1] == {"nome": "Espada", "tipo": "ataque", "valor": 10}
-    registrar_ok("CT-T15", "exportar estado dos itens")
+    registrar_ok("CT-T12", "exportar estado dos itens")
 
-    # CT-T16
+    # CT-T13
     estado[0]["valor"] = 999
     novo_estado = exportarEstadoItens()
     assert novo_estado[0]["valor"] == 20
-    registrar_ok("CT-T16", "exportar cópia sem alterar lista interna")
+    registrar_ok("CT-T13", "exportar cópia sem alterar lista interna")
 
 
 def testar_restaurarEstadoItens():
     limpar_itens()
 
-    # CT-T17
+    # CT-T14
     estado = [
         {"nome": "Poção", "tipo": "cura", "valor": 20},
         {"nome": "Espada", "tipo": "ataque", "valor": 10}
@@ -152,18 +133,23 @@ def testar_restaurarEstadoItens():
     assert verificaIdItemValido(0) is True
     assert verificaIdItemValido(1) is True
     assert verificaIdItemValido(2) is False
-    registrar_ok("CT-T17", "restaurar estado válido dos itens")
+    assert getTipoItem(0) == (0, "cura")
+    assert getValorItem(0) == (0, 20)
+    assert getTipoItem(1) == (0, "ataque")
+    assert getValorItem(1) == (0, 10)
+    registrar_ok("CT-T14", "restaurar estado válido dos itens")
 
-    # CT-T18
+    # CT-T15
     assert restaurarEstadoItens(None) == 2
     assert restaurarEstadoItens("estado inválido") == 2
     assert restaurarEstadoItens([{"nome": "Poção", "tipo": "cura"}]) == 2
     assert restaurarEstadoItens([{"nome": "Poção", "tipo": "velocidade", "valor": 10}]) == 2
-    registrar_ok("CT-T18", "recusar estado inválido dos itens")
+    registrar_ok("CT-T15", "recusar estado inválido dos itens")
 
 
 testar_criarItem()
-testar_aplicarItem()
+testar_getTipoItem()
+testar_getValorItem()
 testar_verificaIdItemValido()
 testar_exportarEstadoItens()
 testar_restaurarEstadoItens()
