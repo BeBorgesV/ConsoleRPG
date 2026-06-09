@@ -96,7 +96,7 @@ def getTipoItem(id_item):
         - A estrutura interna do item não é exposta ao módulo cliente.
     """
 
-    if not verificaIdItemValido(id_item):
+    if not _verificaIdItemValido(id_item):
         return 2, None
 
     return 0, _itens[id_item]["tipo"]
@@ -131,12 +131,12 @@ def getValorItem(id_item):
         - A estrutura interna do item não é exposta ao módulo cliente.
     """
 
-    if not verificaIdItemValido(id_item):
+    if not _verificaIdItemValido(id_item):
         return 2, None
 
     return 0, _itens[id_item]["valor"]
 
-def verificaIdItemValido(id_item):
+def _verificaIdItemValido(id_item):
     """
     Objetivo:
         Verificar se um identificador de item corresponde a um item existente no módulo.

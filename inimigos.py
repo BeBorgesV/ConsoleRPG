@@ -109,7 +109,7 @@ def getVidaInimigo(id_inimigo):
     """
 
     # CT-I08: inimigo inválido
-    if not verificaIdInimigoValido(id_inimigo):
+    if not _verificaIdInimigoValido(id_inimigo):
         return 2, None
 
     inimigo = _inimigos[id_inimigo]
@@ -149,7 +149,7 @@ def getAtaqueInimigo(id_inimigo):
     """
 
     # CT-I10: inimigo inválido
-    if not verificaIdInimigoValido(id_inimigo):
+    if not _verificaIdInimigoValido(id_inimigo):
         return 2, None
 
     inimigo = _inimigos[id_inimigo]
@@ -188,7 +188,7 @@ def getNomeInimigo(id_inimigo):
         - A estrutura interna do inimigo não é exposta ao módulo cliente.
     """
 
-    if not verificaIdInimigoValido(id_inimigo):
+    if not _verificaIdInimigoValido(id_inimigo):
         return 2, None
 
     inimigo = _inimigos[id_inimigo]
@@ -235,7 +235,7 @@ def receberDanoInimigo(id_inimigo, dano):
     """
 
     # CT-I14: inimigo inválido
-    if not verificaIdInimigoValido(id_inimigo):
+    if not _verificaIdInimigoValido(id_inimigo):
         return 2
 
     inimigo = _inimigos[id_inimigo]
@@ -290,7 +290,7 @@ def inimigoVivo(id_inimigo):
     """
 
     # CT-I18: inimigo inválido
-    if not verificaIdInimigoValido(id_inimigo):
+    if not _verificaIdInimigoValido(id_inimigo):
         return 2, None
 
     inimigo = _inimigos[id_inimigo]
@@ -303,7 +303,7 @@ def inimigoVivo(id_inimigo):
     return 0, False
 
 
-def verificaIdInimigoValido(id_inimigo):
+def _verificaIdInimigoValido(id_inimigo):
     """
     Objetivo:
         Verificar se um identificador referencia um inimigo válido.
