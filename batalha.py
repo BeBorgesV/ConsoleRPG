@@ -1,5 +1,6 @@
 import random
 
+import itens
 import jogador
 import inimigos
 
@@ -54,9 +55,10 @@ def _nomeJogador(jogador_atual):
 def _itensUsaveis(inventario):
     usaveis = []
 
-    for item in inventario:
-        if isinstance(item, dict) and item.get("tipo") in ["cura", "ataque"]:
-            usaveis.append(item)
+    for id_item in inventario:
+        codigo, tipo = itens.getTipoItem(id_item)
+        if codigo == 0 and tipo in ["cura", "ataque"]:
+            usaveis.append(id_item)
 
     return usaveis
 
@@ -76,11 +78,10 @@ def _exibirInventarioBatalha(jogador_atual):
     print("\nInventário:")
 
     for indice in range(len(itens_usaveis)):
-        item = itens_usaveis[indice]
-        nome = item.get("nome", "Item")
-        tipo = item.get("tipo", "tipo")
-        valor = item.get("valor", 0)
-        print(str(indice + 1) + " - " + nome + " (" + tipo + ": " + str(valor) + ")")
+        id_item = itens_usaveis[indice]
+        _, tipo = itens.getTipoItem(id_item)
+        _, valor = itens.getValorItem(id_item)
+        print(str(indice + 1) + " - [" + str(tipo) + ": +" + str(valor) + "]")
 
     print("0 - Voltar")
     return 0
