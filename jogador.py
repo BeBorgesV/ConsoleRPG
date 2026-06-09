@@ -11,7 +11,8 @@ __all__ = [
     "ganharXP",
     "atualizarAtaque",
     "adicionarItemJogador",
-    "usarItemJogador"
+    "usarItemJogador", 
+    "exportarJogador"
 ]
 
 # Dicionário interno que armazena todos os TADs de jogadores indexados pelo nome
@@ -149,7 +150,7 @@ def getXP(nome):
 
         Assertivas de saída:
             - se retornar (0, xp), o valor é numérico e reflete o acumulado atual de experiência do jogador.
-            - se retornar códigos de erro (1 ou 2), o segundo parâmetro deve ser None.
+            - se retornar códigos de erro (1 ou 2), o second parâmetro deve ser None.
 
     Hipóteses e restrições:
         - Nenhuma alteração de estado ocorre na estrutura interna durante uma consulta.
@@ -420,13 +421,16 @@ def ganharXP(nome, xp):
     _jogadores[nome]["xp"] = xpAtual + xp
     return 0
 
+
 def atualizarAtaque(nome):
     """
     Objetivo:
         Recalcular e atualizar o poder de ataque do jogador proporcionalmente com base em sua experiência.
+
     Requisitos funcionais:
         - O jogador associado ao nome deve existir.
         - O ataque deve ser recalculado pela fórmula padrão: 10 somado à divisão inteira da experiência por 100.
+
     Acoplamento:
         Entrada:
             nome: string contendo o nome do jogador.
@@ -436,12 +440,15 @@ def atualizarAtaque(nome):
             0: ataque recalculado e atualizado com sucesso.
             1: erro obtido ao ler a experiência do jogador.
             2: erro por jogador inválido ou não cadastrado.
+
     Condições de acoplamento:
         Assertivas de entrada:
             - nome deve ser de um jogador cadastrado.
+
         Assertivas de saída:
             - se retornar 0, o novo valor de ataque passa a respeitar rigorosamente a equação funcional baseada no XP.
             - se retornar 1 ou 2, o atributo de ataque permanece sem modificações.
+
     Hipóteses e restrições:
         - O cálculo utiliza estritamente o operador de divisão inteira (//) para determinar os bônus de patamar de poder.
     """
@@ -456,6 +463,7 @@ def atualizarAtaque(nome):
     # CT-J30 - atualizar ataque corretamente
     _jogadores[nome]["ataque"] = 10 + (xp // 100)
     return 0
+
 
 def adicionarItemJogador(nome, id_item):
     """
@@ -518,7 +526,7 @@ def usarItemJogador(nome, id_item):
 
     Requisitos funcionais:
         - O jogador associado ao nome deve existir.
-        - O id_item não pode ser nulo e deve ser um inteiro válido.
+        - O id_item não pode ser nulo e deve ser um inteiro válido e maior ou igual a zero.
         - O id_item especificado deve obrigatoriamente constar na lista de inventário do jogador.
         - O tipo e o valor do item devem ser obtidos estritamente pelas funções exportadas do módulo 'itens'.
         - Ao final do uso com sucesso, o id_item deve ser removido do inventário.
@@ -538,7 +546,7 @@ def usarItemJogador(nome, id_item):
         Assertivas de entrada:
             - nome deve ser de um jogador cadastrado.
             - id_item deve constar na lista extraída do inventário do jogador.
-            - id_item deve ser um inteiro válido.
+            - id_item deve ser um inteiro válido e maior ou igual a zero.
 
         Assertivas de saída:
             - se retornar 0, o id_item foi completamente removido da lista interna do inventário.
@@ -553,7 +561,8 @@ def usarItemJogador(nome, id_item):
     if not _jogadorExiste(nome):
         return 2
 
-    if id_item is None or not isinstance(id_item, int):
+    # Correção: Adicionada validação robusta se id_item < 0 em consistência com adicionarItemJogador
+    if id_item is None or not isinstance(id_item, int) or id_item < 0:
         return 2
 
     jogador = _jogadores[nome]
@@ -581,3 +590,47 @@ def usarItemJogador(nome, id_item):
     # Remove o ID do inventário do jogador
     jogador["inventario"].remove(id_item)
     return 0
+
+
+def exportarJogador(nome):
+    """
+    Objetivo:
+        Exportar o estado interno completo de um jogador específico a partir de uma cópia profunda (deep copy).
+
+    Requisitos funcionais:
+        - O jogador associado ao nome deve existir no sistema.
+        - O nome deve ser uma string válida e não vazia.
+        - Em caso de sucesso, deve retornar uma cópia isolada do dicionário para persistência ou auditoria externa.
+
+    Acoplamento:
+        Entrada:
+            nome: string contendo o nome identificador do jogador.
+        Saída:
+            cópia segura do dicionário estruturado do jogador.
+        Retornos:
+            (0, jogador_copia): sucesso, retorna o código e o dicionário exportado.
+            2: erro por jogador não cadastrado, nome vazio ou parâmetro inválido.
+
+    Condições de acoplamento:
+        Assertivas de entrada:
+            - nome deve corresponder a um jogador previamente cadastrado.
+            - nome não deve ser vazio ou None.
+
+        Assertivas de saída:
+            - se retornar (0, jogador_copia), a estrutura retornada é um dict contendo todos os atributos atuais.
+            - se retornar (0, jogador_copia), modificações externas no dict retornado não afetam o estado real do jogador armazenado em _jogadores.
+            - se retornar 2, nenhum dado é exposto.
+
+    Hipóteses e restrições:
+        - O formato exportado depende da estrutura atual do dicionário interno do TAD Jogador.
+    """
+    # Validação de parâmetro e existência
+    if nome is None or not isinstance(nome, str) or not nome.strip():
+        return 2
+
+    if not _jogadorExiste(nome.strip()):
+        return 2
+
+    # Retorna cópia profunda e isolada para garantir o encapsulamento
+    jogador_copia = copy.deepcopy(_jogadores[nome.strip()])
+    return 0, jogador_copia
