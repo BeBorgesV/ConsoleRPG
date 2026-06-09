@@ -1,25 +1,19 @@
+import inimigos as inimigos_mod
+import jogador as jogador_mod
 from batalha import calcularDano, iniciarBatalha, turno, verificarFimBatalha, executarBatalha, TURNO_JOGADOR, TURNO_INIMIGO
 
 
 def criarJogadorTeste():
-    return {
-        "nome": "Jogador",
-        "vida": 100,
-        "vida_max": 100,
-        "xp": 0,
-        "ataque": 10,
-        "posicao": (0, 0),
-        "vivo": True,
-        "inventario": []
-    }
+    # Registra no estado interno do modulo jogador
+    jogador_mod.criarJogador("Jogador")
+    return {"nome": "Jogador", "posicao": (0, 0)}
 
 
 def criarInimigoTeste():
-    return {
-        "nome": "Goblin",
-        "vida": 50,
-        "ataque": 5
-    }
+    # Cria via modulo inimigos e retorna o id_inimigo (int)
+    inimigos_mod.restaurarEstadoInimigos([])
+    _, id_inimigo = inimigos_mod.criarInimigo("Goblin", 50, 5)
+    return id_inimigo
 
 
 # CT-B01 - Calcular dano com ataque válido
@@ -78,7 +72,7 @@ def test_iniciarBatalha_com_parametro_invalido():
 def test_iniciarBatalha_com_combatente_morto():
     jogador = criarJogadorTeste()
     inimigo = criarInimigoTeste()
-    inimigo["vida"] = 0
+    inimigos_mod.receberDanoInimigo(inimigo, 50)  # zera a vida do inimigo
 
     assert iniciarBatalha(jogador, inimigo) == (1, None)
 
@@ -98,8 +92,9 @@ def test_turno_jogador_atacando(monkeypatch):
 
     codigo = turno(jogador, inimigo, batalha)
 
+    _, vida_inimigo = inimigos_mod.getVidaInimigo(inimigo)
     assert codigo == 0
-    assert inimigo["vida"] < 50
+    assert vida_inimigo < 50
     assert batalha["turno"] == TURNO_INIMIGO
 
 
@@ -116,8 +111,9 @@ def test_turno_inimigo_atacando():
 
     codigo = turno(jogador, inimigo, batalha)
 
+    _, vida_jogador = jogador_mod.getVida("Jogador")
     assert codigo == 0
-    assert jogador["vida"] < 100
+    assert vida_jogador < 100
     assert batalha["turno"] == TURNO_JOGADOR
 
 
@@ -192,7 +188,7 @@ def test_verificarFimBatalha_sem_vencedor():
 def test_verificarFimBatalha_com_jogador_vencedor():
     jogador = criarJogadorTeste()
     inimigo = criarInimigoTeste()
-    inimigo["vida"] = 0
+    inimigos_mod.receberDanoInimigo(inimigo, 50)  # zera a vida do inimigo
     batalha = {
         "turno": TURNO_JOGADOR,
         "ativa": True,
@@ -211,7 +207,7 @@ def test_verificarFimBatalha_com_jogador_vencedor():
 def test_verificarFimBatalha_com_inimigo_vencedor():
     jogador = criarJogadorTeste()
     inimigo = criarInimigoTeste()
-    jogador["vida"] = 0
+    jogador_mod.receberDanoJogador("Jogador", 100)  # zera a vida do jogador
     batalha = {
         "turno": TURNO_JOGADOR,
         "ativa": True,
