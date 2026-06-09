@@ -181,6 +181,7 @@ def testar_adicionarItemJogador():
 
 testar_adicionarItemJogador()
 
+
 def testar_usarItemJogador():
     criarJogador("Ana")
     receberDanoJogador("Ana", 50)  # Vida cai de 100 para 50
@@ -200,11 +201,11 @@ def testar_usarItemJogador():
     # CT-J37 - Parâmetros inválidos
     assert usarItemJogador("Inexistente", id_pocao) == 2
     assert usarItemJogador("Ana", None) == 2
+    assert usarItemJogador("Ana", -5) == 2  # ID negativo inválido
 
     print("testar_usarItemJogador: OK")
 
-testar_usarItemJogador()
-
+# Chamada única corrigida
 testar_usarItemJogador()
 
 
@@ -217,5 +218,30 @@ def testar_encapsulamento():
     print("testar_encapsulamento: OK")
 
 testar_encapsulamento()
+
+
+def testar_exportarJogador():
+    criarJogador("Ana")
+    
+    # CT-J38 (Sucesso): Exporta o jogador cadastrado com sucesso
+    codigo, dados_ana = exportarJogador("Ana")
+    assert codigo == 0
+    assert isinstance(dados_ana, dict)
+    assert dados_ana["nome"] == "Ana"
+    assert dados_ana["vida"] == 100
+    assert dados_ana["inventario"] == []
+
+    # CT-J39 (Encapsulamento): Modificar a cópia exportada não altera o TAD real
+    dados_ana["vida"] = 5  # Altera a cópia externamente
+    assert getVida("Ana") == (0, 100)  # A vida real continua intacta
+
+    # CT-J40 (Erros): Parâmetro inválido ou jogador inexistente
+    assert exportarJogador("Inexistente") == 2
+    assert exportarJogador("") == 2
+    assert exportarJogador(None) == 2
+
+    print("testar_exportarJogador: OK")
+
+testar_exportarJogador()
 
 print("\n>>> Todos os testes atualizados do módulo Jogador passaram com sucesso! <<<")
