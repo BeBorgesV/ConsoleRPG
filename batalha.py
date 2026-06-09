@@ -1,5 +1,6 @@
 import random
 
+import itens
 import jogador
 import inimigos
 
@@ -54,9 +55,10 @@ def _nomeJogador(jogador_atual):
 def _itensUsaveis(inventario):
     usaveis = []
 
-    for item in inventario:
-        if isinstance(item, dict) and item.get("tipo") in ["cura", "ataque"]:
-            usaveis.append(item)
+    for id_item in inventario:
+        codigo, tipo = itens.getTipoItem(id_item)
+        if codigo == 0 and tipo in ["cura", "ataque"]:
+            usaveis.append(id_item)
 
     return usaveis
 
@@ -76,11 +78,10 @@ def _exibirInventarioBatalha(jogador_atual):
     print("\nInventário:")
 
     for indice in range(len(itens_usaveis)):
-        item = itens_usaveis[indice]
-        nome = item.get("nome", "Item")
-        tipo = item.get("tipo", "tipo")
-        valor = item.get("valor", 0)
-        print(str(indice + 1) + " - " + nome + " (" + tipo + ": " + str(valor) + ")")
+        id_item = itens_usaveis[indice]
+        _, tipo = itens.getTipoItem(id_item)
+        _, valor = itens.getValorItem(id_item)
+        print(str(indice + 1) + " - [" + str(tipo) + ": +" + str(valor) + "]")
 
     print("0 - Voltar")
     return 0
@@ -112,6 +113,37 @@ def _selecionarItemInventario(jogador_atual, escolha):
 
 
 def calcularDano(ataque):
+    """
+    Objetivo:
+        Calcular o dano causado em um ataque com variação aleatória.
+
+    Requisitos funcionais:
+        - O valor de ataque deve ser numérico e positivo.
+        - O dano calculado deve ser um inteiro positivo.
+        - O cálculo deve aplicar um multiplicador aleatório entre 0.7 e 1.5.
+
+    Acoplamento:
+        Entrada:
+            ataque: valor base de ataque do atacante.
+        Saída:
+            dano: valor inteiro de dano calculado.
+        Retornos:
+            (0, dano): dano calculado com sucesso.
+            (1, None): dano resultante igual a zero após cálculo.
+            (2, None): parâmetro inválido.
+
+    Condições de acoplamento:
+        Assertivas de entrada:
+            - ataque deve ser int ou float maior que zero.
+        Assertivas de saída:
+            - se retornar (0, dano), dano é um inteiro positivo.
+            - se retornar (1, None), o cálculo produziu dano zero ou negativo.
+            - se retornar (2, None), o parâmetro recebido é inválido.
+
+    Hipóteses e restrições:
+        - O multiplicador aleatório está no intervalo [0.7, 1.5].
+        - O dano é truncado para inteiro após o cálculo.
+    """
     if ataque is None or not isinstance(ataque, (int, float)) or ataque <= 0:
         return 2, None
 
@@ -125,6 +157,40 @@ def calcularDano(ataque):
 
 
 def iniciarBatalha(jogador_atual, inimigo_atual):
+    """
+    Objetivo:
+        Inicializar o estado de uma batalha entre o jogador e um inimigo.
+
+    Requisitos funcionais:
+        - O jogador deve ser válido e estar vivo.
+        - O inimigo deve ser válido e estar vivo.
+        - A batalha deve começar no turno do jogador.
+        - O estado inicial deve registrar o nome e a vida máxima do inimigo.
+
+    Acoplamento:
+        Entrada:
+            jogador_atual: dicionário do jogador participante da batalha.
+            inimigo_atual: identificador do inimigo a ser enfrentado.
+        Saída:
+            batalha: dicionário com o estado inicial da batalha.
+        Retornos:
+            (0, batalha): batalha iniciada com sucesso.
+            (1, None): erro por regra do jogo (jogador ou inimigo sem vida).
+            (2, None): parâmetro inválido.
+
+    Condições de acoplamento:
+        Assertivas de entrada:
+            - jogador_atual deve ser um dicionário válido registrado no módulo jogador.
+            - inimigo_atual deve ser um identificador inteiro válido no módulo inimigos.
+            - ambos devem possuir vida maior que zero.
+        Assertivas de saída:
+            - se retornar (0, batalha), o estado de batalha está ativo e no turno do jogador.
+            - se retornar (1, None) ou (2, None), nenhum estado de batalha é criado.
+
+    Hipóteses e restrições:
+        - O nome do inimigo é obtido exclusivamente via função de acesso do módulo inimigos.
+        - O estado de batalha é um dicionário interno ao módulo batalha.
+    """
     if jogador_atual is None or inimigo_atual is None:
         return 2, None
 
@@ -142,9 +208,9 @@ def iniciarBatalha(jogador_atual, inimigo_atual):
         return 1, None
 
     nome_inimigo = "Inimigo"
-    if inimigos.verificaIdInimigoValido(inimigo_atual):
-        estado = inimigos.exportarEstadoInimigos()
-        nome_inimigo = estado[inimigo_atual].get("nome", "Inimigo")
+    codigo_nome, nome_obtido = inimigos.getNomeInimigo(inimigo_atual)
+    if codigo_nome == 0:
+        nome_inimigo = nome_obtido
 
     batalha = {
         "turno": TURNO_JOGADOR,
@@ -161,6 +227,43 @@ def iniciarBatalha(jogador_atual, inimigo_atual):
 
 
 def turno(jogador_atual, inimigo_atual, batalha):
+    """
+    Objetivo:
+        Executar um turno de batalha, processando a ação do jogador ou do inimigo.
+
+    Requisitos funcionais:
+        - No turno do jogador, apresentar as opções: atacar, usar item ou defender.
+        - Atacar deve aplicar dano calculado ao inimigo.
+        - Usar item deve consumir um item do inventário do jogador.
+        - Defender deve reduzir o próximo dano recebido e ter chance de atordoar o inimigo.
+        - No turno do inimigo, aplicar dano calculado ao jogador.
+        - Inimigo atordoado deve perder seu turno.
+
+    Acoplamento:
+        Entrada:
+            jogador_atual: dicionário do jogador participante da batalha.
+            inimigo_atual: identificador do inimigo participante.
+            batalha: dicionário com o estado atual da batalha.
+        Saída:
+            estado de batalha e dos participantes atualizado.
+        Retornos:
+            0: turno executado com sucesso.
+            1: erro interno ao executar o turno.
+            2: ação inválida ou parâmetro inválido.
+
+    Condições de acoplamento:
+        Assertivas de entrada:
+            - jogador_atual deve ser um dicionário válido registrado no módulo jogador.
+            - inimigo_atual deve ser um identificador inteiro válido no módulo inimigos.
+            - batalha deve ser um dicionário contendo o campo "turno".
+        Assertivas de saída:
+            - se retornar 0, o turno foi alternado corretamente.
+            - se retornar 2, nenhuma ação foi aplicada e o estado permanece inalterado.
+
+    Hipóteses e restrições:
+        - A defesa reduz o dano recebido à metade e tem 35% de chance de atordoar o inimigo.
+        - O atordoamento faz o inimigo perder exatamente um turno.
+    """
     if jogador_atual is None or inimigo_atual is None or batalha is None:
         return 2
 
@@ -271,6 +374,40 @@ def turno(jogador_atual, inimigo_atual, batalha):
 
 
 def verificarFimBatalha(jogador_atual, inimigo_atual, batalha):
+    """
+    Objetivo:
+        Verificar se a batalha chegou ao fim e registrar o vencedor.
+
+    Requisitos funcionais:
+        - Se a vida do jogador for zero, o inimigo vence.
+        - Se a vida do inimigo for zero, o jogador vence.
+        - O resultado deve ser registrado no estado da batalha.
+
+    Acoplamento:
+        Entrada:
+            jogador_atual: dicionário do jogador participante.
+            inimigo_atual: identificador do inimigo participante.
+            batalha: dicionário com o estado atual da batalha.
+        Saída:
+            estado da batalha atualizado com vencedor e flag ativa.
+        Retornos:
+            0: verificação realizada com sucesso.
+            1: erro ao consultar estado dos participantes.
+            2: parâmetro inválido.
+
+    Condições de acoplamento:
+        Assertivas de entrada:
+            - jogador_atual deve ser um dicionário válido registrado no módulo jogador.
+            - inimigo_atual deve ser um identificador inteiro válido no módulo inimigos.
+            - batalha deve ser um dicionário com os campos "ativa" e "vencedor".
+        Assertivas de saída:
+            - se retornar 0 e batalha["ativa"] for False, batalha["vencedor"] está definido.
+            - se retornar 0 e batalha["ativa"] for True, a batalha ainda não terminou.
+            - se retornar 1 ou 2, o estado da batalha não é alterado.
+
+    Hipóteses e restrições:
+        - A vida dos participantes é consultada exclusivamente via funções de acesso dos módulos.
+    """
     if jogador_atual is None or inimigo_atual is None or batalha is None:
         return 2
 
@@ -297,6 +434,41 @@ def verificarFimBatalha(jogador_atual, inimigo_atual, batalha):
 
 
 def executarBatalha(jogador_atual, inimigo_atual):
+    """
+    Objetivo:
+        Executar uma batalha completa entre o jogador e um inimigo até o fim.
+
+    Requisitos funcionais:
+        - A batalha deve ser iniciada antes do primeiro turno.
+        - Os turnos devem se alternar até que um dos participantes seja derrotado.
+        - O resultado final deve indicar quem venceu.
+
+    Acoplamento:
+        Entrada:
+            jogador_atual: dicionário do jogador participante.
+            inimigo_atual: identificador do inimigo a ser enfrentado.
+        Saída:
+            vencedor: string indicando o resultado da batalha.
+        Retornos:
+            (0, "jogador"): jogador venceu a batalha.
+            (0, "inimigo"): inimigo venceu a batalha.
+            (1, None): erro interno durante a batalha.
+            (2, None): parâmetro inválido.
+
+    Condições de acoplamento:
+        Assertivas de entrada:
+            - jogador_atual deve ser um dicionário válido registrado no módulo jogador.
+            - inimigo_atual deve ser um identificador inteiro válido no módulo inimigos.
+        Assertivas de saída:
+            - se retornar (0, vencedor), a batalha foi concluída normalmente.
+            - se retornar (0, "jogador"), a vida do inimigo chegou a zero.
+            - se retornar (0, "inimigo"), a vida do jogador chegou a zero.
+            - se retornar (1, None) ou (2, None), a batalha foi interrompida por erro.
+
+    Hipóteses e restrições:
+        - Delega a lógica de cada turno para a função turno().
+        - A batalha termina quando verificarFimBatalha() detecta vida zero em algum participante.
+    """
     codigo_inicio, batalha = iniciarBatalha(jogador_atual, inimigo_atual)
 
     if codigo_inicio != 0:

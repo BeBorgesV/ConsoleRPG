@@ -165,41 +165,6 @@ def _posicaoJogador(jogador):
     return 0, jogador["posicao"]
 
 
-def _obterDadosItem(id_item):
-    """
-    Objetivo: Retornar uma cópia dos dados de um item a partir de seu identificador.
-
-    Requisitos funcionais:
-        - id_item deve ser um identificador válido no módulo itens.
-        - Retorna cópia defensiva para não expor o estado interno.
-
-    Acoplamento:
-        Entrada:
-            id_item: identificador do item.
-        Saída:
-            item: dicionário com os dados do item.
-        Retornos:
-            dict: cópia dos dados do item.
-            None: se id_item for inválido ou fora do intervalo.
-
-    Condições de acoplamento:
-        Assertivas de entrada:
-            - id_item deve ser um inteiro válido segundo itens.verificaIdItemValido.
-
-        Assertivas de saída:
-            - se retornar dict, contém os dados completos do item.
-            - se retornar None, nenhum dado foi exposto.
-
-    Hipóteses e restrições:
-        - A estrutura interna dos itens é encapsulada pelo módulo itens.
-    """
-    if not itens.verificaIdItemValido(id_item):
-        return None
-    estado = itens.exportarEstadoItens()
-    if id_item >= len(estado):
-        return None
-    return estado[id_item].copy()
-
 
 def _contarChaves(jogador):
     """
@@ -226,7 +191,7 @@ def _contarChaves(jogador):
             - retorna 0 se getInventario falhar.
 
     Hipóteses e restrições:
-        - Delega a verificação de chave ao módulo itens (itemEhChave).
+        - Verifica tipo de cada item via itens.getTipoItem.
     """
     codigo, inventario = getInventario(_nomeJogador(jogador))
 
@@ -235,8 +200,9 @@ def _contarChaves(jogador):
 
     total = 0
 
-    for item in inventario:
-        if itens.itemEhChave(item):
+    for id_item in inventario:
+        codigo_tipo, tipo = itens.getTipoItem(id_item)
+        if codigo_tipo == 0 and tipo == "chave":
             total += 1
 
     return total
@@ -326,7 +292,7 @@ def _prepararEntidades(mapa):
     for posicao, nome, tipo, valor in ITENS_INICIAIS:
         status, id_item = itens.criarItem(nome, tipo, valor)
 
-        if status != 0 or not itens.verificaIdItemValido(id_item):
+        if status != 0:
             return 1
 
         if alocarItemMapa(mapa, posicao[0], posicao[1], id_item) != 0:
@@ -338,7 +304,7 @@ def _prepararEntidades(mapa):
     for posicao, nome, vida, ataque, final in INIMIGOS_INICIAIS:
         status, id_inimigo = inimigos.criarInimigo(nome, vida, ataque)
 
-        if status != 0 or not inimigos.verificaIdInimigoValido(id_inimigo):
+        if status != 0:
             return 1
 
         if alocarInimigoMapa(mapa, posicao[0], posicao[1], id_inimigo, final) != 0:
@@ -396,19 +362,18 @@ def _resolverEventoAtual(jogador, mapa):
     status_item, id_item = getItemMapa(mapa, x, y)
 
     if status_item == 0:
-        item = _obterDadosItem(id_item)
-
-        if item is None:
-            return 1
-
-        status_adicionar = adicionarItemJogador(nome, item)
+        status_adicionar = adicionarItemJogador(nome, id_item)
 
         if status_adicionar == 0:
-            if itens.itemEhChave(item):
-                print(f"  Chave   : {item['nome']} obtida ({_contarChaves(jogador)}/2).")
+            codigo_tipo, tipo_item = itens.getTipoItem(id_item)
+            _, valor_item = itens.getValorItem(id_item)
+            if codigo_tipo == 0 and tipo_item == "chave":
+                chaves_atuais = _contarChaves(jogador)
+                print(f"  Chave   : obtida ({chaves_atuais}/2).")
+                if chaves_atuais >= 2:
+                    print("  Portao  : desbloqueado! Voce pode entrar no castelo.")
             else:
-                print(f"  Achado  : {item['nome']} adicionado ao inventario.")
-
+                print(f"  Achado  : [{tipo_item}: +{valor_item}] adicionado ao inventario.")
             limparEventoMapa(mapa, x, y)
             return 0
 
@@ -422,9 +387,6 @@ def _resolverEventoAtual(jogador, mapa):
 
     if status_inimigo != 0:
         return 2 if status_item == 2 or status_inimigo == 2 else 0
-
-    if not inimigos.verificaIdInimigoValido(id_inimigo):
-        return 1
 
     status_final, chefe = inimigoFinalMapa(mapa, x, y)
 
@@ -678,7 +640,7 @@ def _exibirInventario(jogador):
             - o inventário é impresso no console independente de estar vazio.
 
     Hipóteses e restrições:
-        - Itens do inventário podem ser dicionários ou outros tipos.
+        - Itens do inventário são IDs inteiros; tipo e valor obtidos via itens.getTipoItem/getValorItem.
     """
     nome = _nomeJogador(jogador)
     _, vida = getVida(nome)
@@ -689,11 +651,10 @@ def _exibirInventario(jogador):
     chaves = _contarChaves(jogador)
     nomes = []
 
-    for item in inventario:
-        if isinstance(item, dict):
-            nomes.append(item.get("nome", "Item"))
-        else:
-            nomes.append(str(item))
+    for id_item in inventario:
+        _, tipo = itens.getTipoItem(id_item)
+        _, valor = itens.getValorItem(id_item)
+        nomes.append(f"[{tipo}: +{valor}]")
 
     texto_inventario = ", ".join(nomes) if nomes else "vazio"
 
@@ -739,17 +700,25 @@ def _usarItemMapa(jogador):
     Hipóteses e restrições:
         - Apenas itens dos tipos "cura" e "ataque" são utilizáveis fora de batalha.
         - Delega o uso ao módulo jogador (usarItemJogador).
+        - Tipo e valor obtidos via itens.getTipoItem/getValorItem.
     """
     nome = _nomeJogador(jogador)
     _, inventario = getInventario(nome)
-    usaveis = [item for item in inventario if isinstance(item, dict) and item.get("tipo") in ["cura", "ataque"]]
+
+    usaveis = []
+    for id_item in inventario:
+        codigo_tipo, tipo = itens.getTipoItem(id_item)
+        if codigo_tipo == 0 and tipo in ["cura", "ataque"]:
+            usaveis.append(id_item)
 
     if not usaveis:
         print("  Nenhum item utilizável no inventário.")
         return 0
 
-    for i, item in enumerate(usaveis):
-        print(f"  {i + 1} - {item.get('nome', 'Item')} ({item.get('tipo')}: +{item.get('valor', 0)})")
+    for i, id_item in enumerate(usaveis):
+        _, tipo = itens.getTipoItem(id_item)
+        _, valor = itens.getValorItem(id_item)
+        print(f"  {i + 1} - [{tipo}: +{valor}]")
     print("  0 - Cancelar")
 
     try:
@@ -765,11 +734,12 @@ def _usarItemMapa(jogador):
         print("  Opção inválida.")
         return 0
 
-    item = usaveis[num - 1]
-    codigo = usarItemJogador(nome, item)
+    id_item = usaveis[num - 1]
+    codigo = usarItemJogador(nome, id_item)
 
     if codigo == 0:
-        print(f"  {item.get('nome', 'Item')} utilizado.")
+        _, tipo = itens.getTipoItem(id_item)
+        print(f"  Item de {tipo} utilizado.")
     else:
         print("  Não foi possível usar o item.")
 
