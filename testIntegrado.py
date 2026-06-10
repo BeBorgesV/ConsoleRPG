@@ -488,8 +488,81 @@ def testar_fluxo_batalha_completa():
     )
 
 
+# ==================================================
+# Fluxo 7 - Casos negativos de batalha
+# ==================================================
+def testar_fluxos_negativos_batalha():
+    _secao("Fluxo 7 - Casos negativos de batalha")
+    _resetar_itens_inimigos()
+
+    nome = "HeroiDerrota"
+    jogador_atual = _criar_jogador_estado(nome, vida=10, ataque=1)
+    codigo_inimigo, id_inimigo = inimigos.criarInimigo("Dragao", 80, 20)
+    codigo_inicio, estado_batalha = batalha.iniciarBatalha(jogador_atual, id_inimigo)
+
+    if isinstance(estado_batalha, dict):
+        estado_batalha["turno"] = batalha.TURNO_INIMIGO
+
+    with SimularRandom(uniforme=1.0):
+        status_turno = batalha.turno(jogador_atual, id_inimigo, estado_batalha)
+
+    status_fim = batalha.verificarFimBatalha(jogador_atual, id_inimigo, estado_batalha)
+
+    _resultado(
+        "CT-INT-22",
+        "encerrar batalha com derrota do jogador",
+        jogador_atual is not None
+        and codigo_inimigo == 0
+        and codigo_inicio == 0
+        and status_turno == 0
+        and status_fim == 0
+        and jogador.getVida(nome) == (0, 0)
+        and estado_batalha.get("ativa") is False
+        and estado_batalha.get("vencedor") == "inimigo"
+    )
+
+    nome = "HeroiAcaoInvalida"
+    jogador_atual = _criar_jogador_estado(nome, vida=100, ataque=10)
+    codigo_inimigo, id_inimigo = inimigos.criarInimigo("Goblin", 30, 6)
+    codigo_inicio, estado_batalha = batalha.iniciarBatalha(jogador_atual, id_inimigo)
+
+    with SimularInput(["9"]), SimularRandom(uniforme=1.0):
+        status_acao_invalida = batalha.turno(jogador_atual, id_inimigo, estado_batalha)
+
+    _resultado(
+        "CT-INT-23",
+        "recusar ação inválida no turno do jogador",
+        codigo_inimigo == 0
+        and codigo_inicio == 0
+        and status_acao_invalida == 2
+        and inimigos.getVidaInimigo(id_inimigo) == (0, 30)
+        and jogador.getVida(nome) == (0, 100)
+        and estado_batalha.get("turno") == batalha.TURNO_JOGADOR
+    )
+
+    nome = "HeroiSemItem"
+    jogador_atual = _criar_jogador_estado(nome, vida=80, ataque=10)
+    codigo_inimigo, id_inimigo = inimigos.criarInimigo("Morcego", 30, 6)
+    codigo_inicio, estado_batalha = batalha.iniciarBatalha(jogador_atual, id_inimigo)
+
+    with SimularInput([batalha.USAR_ITEM]), SimularRandom(uniforme=1.0):
+        status_sem_item = batalha.turno(jogador_atual, id_inimigo, estado_batalha)
+
+    _resultado(
+        "CT-INT-24",
+        "tratar tentativa de usar item sem itens disponíveis",
+        jogador_atual is not None
+        and codigo_inimigo == 0
+        and codigo_inicio == 0
+        and status_sem_item == 0
+        and jogador.getVida(nome) == (0, 80)
+        and inimigos.getVidaInimigo(id_inimigo) == (0, 30)
+        and estado_batalha.get("turno") == batalha.TURNO_JOGADOR
+    )
+
+
 def testar_fluxo_xp_e_evolucao():
-    _secao("Fluxo 7 - XP e atualização de ataque após combate")
+    _secao("Fluxo 8 - XP e atualização de ataque após combate")
     _resetar_itens_inimigos()
 
     nome = "HeroiXP"
@@ -501,7 +574,7 @@ def testar_fluxo_xp_e_evolucao():
     _, ataque = jogador.getAtaque(nome)
 
     _resultado(
-        "CT-INT-22",
+        "CT-INT-25",
         "ganhar XP e atualizar ataque do jogador",
         status_xp == 0
         and status_ataque == 0
@@ -511,7 +584,7 @@ def testar_fluxo_xp_e_evolucao():
 
 
 def testar_fluxo_exportacao_restauracao():
-    _secao("Fluxo 8 - Exportação e restauração dos TADs")
+    _secao("Fluxo 9 - Exportação e restauração dos TADs")
     _resetar_itens_inimigos()
 
     nome = "HeroiExportacao"
@@ -538,7 +611,7 @@ def testar_fluxo_exportacao_restauracao():
     status_restaurar_inimigos = inimigos.restaurarEstadoInimigos(estado_inimigos)
 
     _resultado(
-        "CT-INT-23",
+        "CT-INT-26",
         "exportar e restaurar jogador, itens e inimigos mantendo estado",
         jogador_atual is not None
         and codigo_item == 0
@@ -555,7 +628,7 @@ def testar_fluxo_exportacao_restauracao():
 
 
 def testar_fluxo_save_load():
-    _secao("Fluxo 9 - Salvamento e carregamento integrado")
+    _secao("Fluxo 10 - Salvamento e carregamento integrado")
     _limpar_save()
     _resetar_itens_inimigos()
 
@@ -574,7 +647,7 @@ def testar_fluxo_save_load():
     existe_save = salvar.existeSalvamento()
 
     _resultado(
-        "CT-INT-24",
+        "CT-INT-27",
         "salvar jogo com jogador, mapa, item e inimigo",
         codigo_mapa == 0
         and codigo_item == 0
@@ -591,7 +664,7 @@ def testar_fluxo_save_load():
     _, inventario_carregado = jogador.getInventario("HeroiSave")
 
     _resultado(
-        "CT-INT-25",
+        "CT-INT-28",
         "carregar jogo restaura jogador, itens, inimigos e mapa",
         codigo_carregar == 0
         and jogador_carregado is not None
@@ -609,7 +682,7 @@ def testar_fluxo_save_load():
 
 
 def testar_fluxos_de_erro_integrados():
-    _secao("Fluxo 10 - Erros integrados e entradas inválidas")
+    _secao("Fluxo 11 - Erros integrados e entradas inválidas")
     _limpar_save()
     _resetar_itens_inimigos()
 
@@ -625,7 +698,7 @@ def testar_fluxos_de_erro_integrados():
     status_salvar_invalido = salvar.salvarJogo(None, mapa)
 
     _resultado(
-        "CT-INT-26",
+        "CT-INT-29",
         "tratar ausência de save e parâmetros inválidos entre módulos",
         codigo_sem_save == 2
         and jogador_sem_save is None
@@ -637,6 +710,22 @@ def testar_fluxos_de_erro_integrados():
         and status_mapa_invalido == 1
         and status_salvar_invalido == 2
     )
+
+    _limpar_save()
+    with open("save.json", "w", encoding="utf-8") as arquivo:
+        arquivo.write("{ arquivo json invalido")
+
+    codigo_json_invalido, jogador_json_invalido, mapa_json_invalido = salvar.carregarJogo(_preparar_entidades_teste)
+
+    _resultado(
+        "CT-INT-30",
+        "recusar carregamento com arquivo JSON inválido",
+        codigo_json_invalido == 2
+        and jogador_json_invalido is None
+        and mapa_json_invalido is None
+    )
+
+    _limpar_save()
 
 
 # ==================================================
@@ -653,6 +742,7 @@ testar_fluxo_mapa_movimento_eventos()
 testar_fluxo_portao_chaves_chefe()
 testar_fluxo_batalha()
 testar_fluxo_batalha_completa()
+testar_fluxos_negativos_batalha()
 testar_fluxo_xp_e_evolucao()
 testar_fluxo_exportacao_restauracao()
 testar_fluxo_save_load()
