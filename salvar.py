@@ -2,6 +2,8 @@ import json
 import os
 
 import jogador as modulo_jogador
+from inimigos import exportarEstadoInimigos, restaurarEstadoInimigos
+from itens import exportarEstadoItens, restaurarEstadoItens
 from mapa import criarMapa, exportarEstadoMapa
 
 __all__ = [
@@ -47,13 +49,15 @@ def existeSalvamento():
 def salvarJogo(jogador_atual, mapa):
     """
     Objetivo:
-        Persistir o estado atual do jogo em arquivo JSON, incluindo nome, posição,
-        inventário, vida, XP, ataque do jogador e eventos restantes do mapa.
+        Persistir o estado atual do jogo em arquivo JSON, incluindo o estado do
+        jogador, eventos restantes do mapa, lista de inimigos e lista de itens.
 
     Requisitos funcionais:
-        - Exportar os dados do jogador via funções de acesso do módulo jogador.
-        - Salvar a posição atual do jogador no mapa.
-        - Salvar o estado dos eventos do mapa (quais posições ainda têm item ou inimigo).
+        - Exportar os dados do jogador via função exportarJogador do módulo jogador.
+        - Salvar a posição atual do jogador.
+        - Salvar o estado dos eventos do mapa.
+        - Exportar e salvar o estado atual dos inimigos.
+        - Exportar e salvar o estado atual dos itens.
         - Gravar tudo em um arquivo JSON no diretório atual.
 
     Acoplamento:
@@ -77,7 +81,7 @@ def salvarJogo(jogador_atual, mapa):
             - se retornar 1 ou 2, nenhum arquivo foi gravado.
 
     Hipóteses e restrições:
-        - Depende apenas do módulo jogador para leitura dos atributos.
+        - Depende das funções de exportação dos módulos jogador, inimigos e itens.
         - Ao carregar, o mapa é recriado via _prepararEntidades e os eventos
           já resolvidos são removidos conforme o estado salvo.
         - Chaves de tupla do mapa são convertidas para string no JSON.
@@ -91,13 +95,15 @@ def salvarJogo(jogador_atual, mapa):
     if not nome or not isinstance(posicao, tuple):
         return 2
 
-    codigo_vida, vida = modulo_jogador.getVida(nome)
-    codigo_ataque, ataque = modulo_jogador.getAtaque(nome)
-    codigo_xp, xp = modulo_jogador.getXP(nome)
-    codigo_inv, inventario = modulo_jogador.getInventario(nome)
-
-    if any(c != 0 for c in [codigo_vida, codigo_ataque, codigo_xp, codigo_inv]):
+    resultado_jogador = modulo_jogador.exportarJogador(nome)
+    if not isinstance(resultado_jogador, tuple) or len(resultado_jogador) != 2:
         return 1
+
+    codigo_jogador, dados_jogador = resultado_jogador
+    if codigo_jogador != 0 or not isinstance(dados_jogador, dict):
+        return 1
+
+    dados_jogador["posicao"] = list(posicao)
 
     def converter_chaves(dicionario):
         return {str(k): v for k, v in dicionario.items()}
@@ -106,16 +112,10 @@ def salvarJogo(jogador_atual, mapa):
     eventos_mapa = estado_mapa["eventos"] if status_mapa == 0 else {}
 
     save = {
-        "jogador": {
-            "nome": nome,
-            "vida": vida,
-            "vida_max": jogador_atual.get("vida_max", 100),
-            "ataque": ataque,
-            "xp": xp,
-            "posicao": list(posicao),
-            "inventario": inventario
-        },
-        "mapa_eventos": converter_chaves(eventos_mapa)
+        "jogador": dados_jogador,
+        "mapa_eventos": converter_chaves(eventos_mapa),
+        "inimigos": exportarEstadoInimigos(),
+        "itens": exportarEstadoItens()
     }
 
     try:
@@ -129,15 +129,16 @@ def salvarJogo(jogador_atual, mapa):
 def carregarJogo(prepararEntidades):
     """
     Objetivo:
-        Carregar o estado do jogo a partir do arquivo de salvamento, recriando
-        o mapa com todas as entidades e removendo os eventos já resolvidos.
+        Carregar o estado do jogo a partir do arquivo de salvamento, restaurando
+        jogador, mapa, inimigos e itens.
 
     Requisitos funcionais:
         - Ler e validar o arquivo de save JSON.
-        - Recriar o jogador no módulo jogador com os dados salvos.
-        - Recriar o mapa completo via prepararEntidades (itens e inimigos iniciais).
+        - Restaurar o jogador no módulo jogador por meio da função restaurarJogador.
+        - Recriar o mapa completo via prepararEntidades.
+        - Restaurar a lista de inimigos a partir do estado salvo.
+        - Restaurar a lista de itens a partir do estado salvo.
         - Remover do mapa os eventos que já haviam sido resolvidos no save.
-        - Retornar o dicionário do jogador e o mapa prontos para uso.
 
     Acoplamento:
         Entrada:
@@ -161,6 +162,7 @@ def carregarJogo(prepararEntidades):
 
     Hipóteses e restrições:
         - O mapa é sempre recriado do zero via criarMapa + prepararEntidades.
+        - Jogador, inimigos e itens são restaurados apenas por funções de interface dos seus módulos.
         - Os eventos já resolvidos são identificados pela comparação entre o estado
           salvo e o estado inicial, e removidos com limparEventoMapa.
         - Chaves de posição são convertidas de string para tupla ao carregar.
@@ -179,40 +181,37 @@ def carregarJogo(prepararEntidades):
 
     dados_jogador = save.get("jogador")
     eventos_salvos = save.get("mapa_eventos")
+    inimigos_salvos = save.get("inimigos")
+    itens_salvos = save.get("itens")
 
     if dados_jogador is None or eventos_salvos is None:
         return 2, None, None
 
-    # Recria jogador
-    nome = dados_jogador.get("nome")
-    if not nome:
+    if inimigos_salvos is None or itens_salvos is None:
         return 2, None, None
 
-    resultado = modulo_jogador.criarJogador(nome)
-    if not isinstance(resultado, dict):
-        return 1, None, None
-
-    jogador_atual = resultado
-    jogador_interno = modulo_jogador._jogadores.get(nome)
-    if jogador_interno is None:
-        return 1, None, None
-
-    jogador_interno["vida"]      = dados_jogador.get("vida", 100)
-    jogador_interno["xp"]        = dados_jogador.get("xp", 0)
-    jogador_interno["ataque"]    = dados_jogador.get("ataque", 10)
-    jogador_interno["vida_max"]  = dados_jogador.get("vida_max", 100)
-    jogador_interno["inventario"] = dados_jogador.get("inventario", [])
-
-    jogador_atual["vida"]     = jogador_interno["vida"]
-    jogador_atual["xp"]       = jogador_interno["xp"]
-    jogador_atual["ataque"]   = jogador_interno["ataque"]
-    jogador_atual["vida_max"] = jogador_interno["vida_max"]
+    if not isinstance(dados_jogador, dict):
+        return 2, None, None
 
     posicao_lista = dados_jogador.get("posicao")
     if not isinstance(posicao_lista, list) or len(posicao_lista) != 2:
         return 2, None, None
 
+    status_jogador = modulo_jogador.restaurarJogador(dados_jogador)
+    if status_jogador == 2:
+        return 2, None, None
+
+    if status_jogador != 0:
+        return 1, None, None
+
+    jogador_atual = dados_jogador.copy()
     jogador_atual["posicao"] = tuple(posicao_lista)
+
+    if restaurarEstadoInimigos([]) != 0:
+        return 1, None, None
+
+    if restaurarEstadoItens([]) != 0:
+        return 1, None, None
 
     # Recria mapa com todas as entidades iniciais
     status_mapa, mapa = criarMapa()
@@ -220,6 +219,12 @@ def carregarJogo(prepararEntidades):
         return 1, None, None
 
     if prepararEntidades(mapa) != 0:
+        return 1, None, None
+
+    if restaurarEstadoInimigos(inimigos_salvos) != 0:
+        return 1, None, None
+
+    if restaurarEstadoItens(itens_salvos) != 0:
         return 1, None, None
 
     # Remove do mapa os eventos já resolvidos (que estavam como "vazio" no save)
