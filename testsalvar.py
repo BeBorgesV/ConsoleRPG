@@ -28,19 +28,21 @@ def _limparSave():
 
 
 def _prepararJogador(nome="Heroi", vida=80, xp=150, ataque=11):
-    """Cria jogador no módulo e ajusta seus atributos para os testes."""
-    resultado = modulo_jogador.criarJogador(nome)
-    jogador = resultado if isinstance(resultado, dict) else None
-    if jogador is None:
+    """Cria/restaura jogador no módulo usando apenas a interface pública."""
+    jogador = {
+        "nome": nome,
+        "vida": vida,
+        "vida_max": 100,
+        "xp": xp,
+        "ataque": ataque,
+        "vivo": vida > 0,
+        "inventario": [],
+        "posicao": (1, 13)
+    }
+
+    if modulo_jogador.restaurarJogador(jogador) != 0:
         return None
-    jogador_interno = modulo_jogador._jogadores.get(nome)
-    jogador_interno["vida"] = vida
-    jogador_interno["xp"] = xp
-    jogador_interno["ataque"] = ataque
-    jogador["vida"] = vida
-    jogador["xp"] = xp
-    jogador["ataque"] = ataque
-    jogador["vida_max"] = 100
+
     return jogador
 
 
@@ -57,10 +59,35 @@ def _prepararMapa():
 
 
 def _prepararItemNoInventario(jogador, nome="Amuleto", tipo="ataque", valor=5):
-    """Cria item e adiciona ao inventário do jogador."""
-    item = {"nome": nome, "tipo": tipo, "valor": valor}
-    modulo_jogador.adicionarItemJogador(jogador.get("nome"), item)
-    return item
+    """Cria um item no módulo Item e adiciona seu id ao inventário do jogador."""
+    codigo, id_item = itens.criarItem(nome, tipo, valor)
+    if codigo != 0:
+        return None
+
+    nome_jogador = jogador.get("nome")
+    resultado = modulo_jogador.exportarJogador(nome_jogador)
+    if not isinstance(resultado, tuple) or len(resultado) != 2:
+        return None
+
+    codigo_jogador, dados_jogador = resultado
+    if codigo_jogador != 0:
+        return None
+
+    dados_jogador["inventario"].append(id_item)
+
+    if modulo_jogador.restaurarJogador(dados_jogador) != 0:
+        return None
+
+    jogador["inventario"] = dados_jogador["inventario"]
+    return id_item
+
+def _prepararEntidadesTeste(mapa):
+    """Recria entidades iniciais esperadas pelo módulo salvar durante o carregamento."""
+    _, id_item = itens.criarItem("Pocao simples", "cura", 25)
+    _, id_inimigo = inimigos.criarInimigo("Lobo", 35, 7)
+    alocarItemMapa(mapa, 2, 12, id_item)
+    alocarInimigoMapa(mapa, 5, 11, id_inimigo, False)
+    return 0
 
 def testar_existeSalvamento():
     print("\n[ existeSalvamento ]")
@@ -116,7 +143,7 @@ def testar_salvarJogo():
     # CT-S11: conteúdo do save tem estrutura esperada
     with open("save.json", "r", encoding="utf-8") as f:
         conteudo = json.load(f)
-    chaves_esperadas = {"jogador", "itens_modulo", "inimigos_modulo", "mapa"}
+    chaves_esperadas = {"jogador", "itens", "inimigos", "mapa_eventos"}
     _resultado("CT-S11", "save.json contém as chaves esperadas", chaves_esperadas.issubset(conteudo.keys()))
 
     # CT-S12: posição salva corretamente
@@ -144,16 +171,16 @@ def testar_salvarJogo():
         conteudo = json.load(f)
     inventario_salvo = conteudo["jogador"]["inventario"]
     _resultado("CT-S17", "inventário salvo com 1 item", len(inventario_salvo) == 1)
-    _resultado("CT-S18", "nome do item no inventário está correto", inventario_salvo[0]["nome"] == "Pocao")
+    _resultado("CT-S18", "inventário salvo contém id de item", isinstance(inventario_salvo[0], int))
 
     # CT-S19: estado dos itens do módulo salvo
-    _resultado("CT-S19", "itens_modulo salvo com itens alocados", len(conteudo["itens_modulo"]) > 0)
+    _resultado("CT-S19", "itens salvos com itens alocados", len(conteudo["itens"]) > 0)
 
     # CT-S20: estado dos inimigos do módulo salvo
-    _resultado("CT-S20", "inimigos_modulo salvo com inimigos alocados", len(conteudo["inimigos_modulo"]) > 0)
+    _resultado("CT-S20", "inimigos salvos com inimigos alocados", len(conteudo["inimigos"]) > 0)
 
     # CT-S21: eventos do mapa salvos
-    _resultado("CT-S21", "mapa.eventos não está vazio após salvar com entidades", len(conteudo["mapa"]["eventos"]) > 0)
+    _resultado("CT-S21", "mapa_eventos não está vazio após salvar com entidades", len(conteudo["mapa_eventos"]) > 0)
 
     _limparSave()
 
@@ -162,34 +189,43 @@ def testar_carregarJogo():
     _limparSave()
 
     # CT-S22: sem arquivo de save
-    codigo, j, m = salvar.carregarJogo()
+    codigo, j, m = salvar.carregarJogo(_prepararEntidadesTeste)
     _resultado("CT-S22", "retorna (2, None, None) sem save.json", (codigo, j, m) == (2, None, None))
 
     # CT-S23: arquivo corrompido (JSON inválido)
     with open("save.json", "w") as f:
         f.write("isso nao e json valido {{{")
-    codigo, j, m = salvar.carregarJogo()
+    codigo, j, m = salvar.carregarJogo(_prepararEntidadesTeste)
     _resultado("CT-S23", "retorna (2, None, None) com JSON inválido", (codigo, j, m) == (2, None, None))
     _limparSave()
 
     # CT-S24: arquivo com estrutura incompleta (faltando chave)
     with open("save.json", "w", encoding="utf-8") as f:
         json.dump({"jogador": {"nome": "X"}}, f)
-    codigo, j, m = salvar.carregarJogo()
+    codigo, j, m = salvar.carregarJogo(_prepararEntidadesTeste)
     _resultado("CT-S24", "retorna (2, None, None) com estrutura incompleta", (codigo, j, m) == (2, None, None))
     _limparSave()
 
     # CT-S25: arquivo com itens_modulo inválido
     save_invalido = {
-        "jogador": {"nome": "X", "vida": 100, "vida_max": 100, "ataque": 10, "xp": 0, "posicao": [1, 13], "inventario": []},
-        "itens_modulo": "nao e lista",
-        "inimigos_modulo": [],
-        "mapa": {"eventos": {}, "itens": {}, "inimigos": {}, "chefes": []}
+        "jogador": {
+            "nome": "X",
+            "vida": 100,
+            "vida_max": 100,
+            "ataque": 10,
+            "xp": 0,
+            "vivo": True,
+            "posicao": [1, 13],
+            "inventario": []
+        },
+        "itens": "nao e lista",
+        "inimigos": [],
+        "mapa_eventos": {}
     }
     with open("save.json", "w", encoding="utf-8") as f:
         json.dump(save_invalido, f)
-    codigo, j, m = salvar.carregarJogo()
-    _resultado("CT-S25", "retorna (1, None, None) com itens_modulo inválido", codigo != 0 and j is None)
+    codigo, j, m = salvar.carregarJogo(_prepararEntidadesTeste)
+    _resultado("CT-S25", "retorna erro com itens inválido", codigo != 0 and j is None)
     _limparSave()
 
     # ── Ciclo completo: salvar e carregar ──
@@ -202,7 +238,7 @@ def testar_carregarJogo():
     salvar.salvarJogo(jogador_original, mapa_original)
 
     # CT-S26: carregamento bem-sucedido
-    codigo, jogador_carregado, mapa_carregado = salvar.carregarJogo()
+    codigo, jogador_carregado, mapa_carregado = salvar.carregarJogo(_prepararEntidadesTeste)
     _resultado("CT-S26", "retorna 0 após save válido", codigo == 0)
     _resultado("CT-S27", "jogador retornado não é None", jogador_carregado is not None)
     _resultado("CT-S28", "mapa retornado não é None", mapa_carregado is not None)
@@ -231,9 +267,11 @@ def testar_carregarJogo():
     _, inventario = modulo_jogador.getInventario("Guerreiro")
     _resultado("CT-S34", "inventário restaurado com 1 item", len(inventario) == 1)
 
-    # CT-S35: nome do item do inventário restaurado
-    _resultado("CT-S35", "nome do item no inventário correto após carga",
-               inventario[0].get("nome") == "Amuleto de ataque")
+    # CT-S35: item do inventário restaurado corretamente
+    codigo_tipo, tipo_item = itens.getTipoItem(inventario[0])
+    codigo_valor, valor_item = itens.getValorItem(inventario[0])
+    _resultado("CT-S35", "item do inventário restaurado corretamente",
+               codigo_tipo == 0 and tipo_item == "ataque" and codigo_valor == 0 and valor_item == 5)
 
     # CT-S36: itens do módulo restaurados
     estado_itens = itens.exportarEstadoItens()
@@ -259,11 +297,14 @@ def testar_carregarJogo():
 
     # CT-S41: salvar duas vezes sobrescreve o arquivo
     jogador_original["posicao"] = (9, 9)
-    jogador_interno = modulo_jogador._jogadores.get("Guerreiro")
-    jogador_interno["vida"] = 60
+    resultado = modulo_jogador.exportarJogador("Guerreiro")
+    codigo_jogador, dados_jogador = resultado
+    dados_jogador["vida"] = 60
+    dados_jogador["vivo"] = True
+    modulo_jogador.restaurarJogador(dados_jogador)
     jogador_original["vida"] = 60
     salvar.salvarJogo(jogador_original, mapa_original)
-    _, jogador2, _ = salvar.carregarJogo()
+    _, jogador2, _ = salvar.carregarJogo(_prepararEntidadesTeste)
     _resultado("CT-S41", "segundo save sobrescreve o primeiro",
                jogador2.get("posicao") == (9, 9) and jogador2.get("vida") == 60)
 
